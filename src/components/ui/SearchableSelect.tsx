@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback, useId } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, X, Check, Search } from "lucide-react";
 
 interface SearchableSelectProps {
@@ -34,9 +35,11 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(VISIBLE_COUNT);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const baseId = useId();
   const listboxId = `${baseId}-listbox`;
 
@@ -60,7 +63,12 @@ export function SearchableSelect({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const listbox = document.getElementById(listboxId);
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node) &&
+        !(listbox && listbox.contains(event.target as Node))
+      ) {
         setOpen(false);
       }
     }
@@ -68,7 +76,7 @@ export function SearchableSelect({
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [open]);
+  }, [open, listboxId]);
 
   useEffect(() => {
     if (open && inputRef.current) {
@@ -77,11 +85,29 @@ export function SearchableSelect({
   }, [open]);
 
   const handleOpen = () => {
-    if (!disabled && !loading) setOpen(true);
+    if (!disabled && !loading) {
+      setSearch("");
+      setVisibleCount(VISIBLE_COUNT);
+      setOpen(true);
+    }
   };
 
   const handleToggle = () => {
-    if (!disabled && !loading) setOpen((prev) => !prev);
+    if (!disabled && !loading) {
+      if (!open) {
+        setSearch("");
+        setVisibleCount(VISIBLE_COUNT);
+        if (triggerRef.current) {
+          const rect = triggerRef.current.getBoundingClientRect();
+          setDropdownPosition({
+            top: rect.bottom + window.scrollY + 6,
+            left: rect.left + window.scrollX,
+            width: rect.width,
+          });
+        }
+      }
+      setOpen((prev) => !prev);
+    }
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,8 +125,10 @@ export function SearchableSelect({
     (option: string) => {
       if (multiple) {
         const current = Array.isArray(value) ? value : [];
-        const updated = current.includes(option)
-          ? current.filter((item) => item !== option)
+        const normalizedOption = option.toLowerCase();
+        const existingIndex = current.findIndex(v => v.toLowerCase() === normalizedOption);
+        const updated = existingIndex >= 0
+          ? current.filter((_, i) => i !== existingIndex)
           : [...current, option];
         onChange(updated);
       } else {
@@ -132,7 +160,8 @@ export function SearchableSelect({
     }
   }, [filteredOptions.length]);
 
-  const isSelected = (option: string) => selectedValues.includes(option);
+  const isSelected = (option: string) =>
+    selectedValues.some((v) => v.toLowerCase() === option.toLowerCase());
 
   const displayValue = useMemo(() => {
     if (selectedValues.length === 0) return placeholder;
@@ -149,6 +178,7 @@ export function SearchableSelect({
 
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           id={`${listboxId}-trigger`}
           onClick={handleToggle}
@@ -188,12 +218,17 @@ export function SearchableSelect({
         )}
       </div>
 
-      {open && (
+      {open && createPortal(
         <div
           id={listboxId}
           role="listbox"
           aria-multiselectable={multiple}
-          className="absolute z-[100] mt-1.5 w-full min-w-[240px] bg-navy-card border border-navy-line rounded-md shadow-xl overflow-hidden"
+          className="fixed z-[9999] bg-navy-card border border-navy-line rounded-md shadow-xl overflow-hidden"
+          style={{
+            top: dropdownPosition.top,
+            left: dropdownPosition.left,
+            width: dropdownPosition.width,
+          }}
         >
           <div className="flex items-center gap-2 px-3 py-2 border-b border-navy-line">
             <Search className="w-4 h-4 text-gray-5 flex-shrink-0" />
@@ -276,7 +311,8 @@ export function SearchableSelect({
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

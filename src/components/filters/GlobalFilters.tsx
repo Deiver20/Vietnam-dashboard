@@ -3,6 +3,7 @@
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { TradeFilterOptions } from "@/app/interfaces/trade/interface";
+import { DASHBOARD_YEAR_RANGE } from "@/app/constants";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { YearRangeFilter } from "@/components/filters/YearRangeFilter";
 import { Filter, RotateCcw } from "lucide-react";
@@ -15,8 +16,8 @@ export function GlobalFilters({ options }: GlobalFiltersProps) {
   const { locale, filters, setFilters, resetFilters } = useDashboard();
   const t = getTranslation(locale);
 
-  const minYear = options.years.length > 0 ? Math.min(...options.years) : 2020;
-  const maxYear = options.years.length > 0 ? Math.max(...options.years) : 2026;
+  const minYear = DASHBOARD_YEAR_RANGE.min;
+  const maxYear = DASHBOARD_YEAR_RANGE.max;
 
   return (
     <div className="bg-navy-card/80 backdrop-blur-sm border border-navy-line rounded-lg p-4 mb-6 shadow-sm">
@@ -53,10 +54,9 @@ export function GlobalFilters({ options }: GlobalFiltersProps) {
           placeholder={t.filters.all}
           searchPlaceholder={t.filters.search}
           options={options.products}
-          value={filters.product?.[0] || ""}
-          onChange={(value) =>
-            setFilters({ ...filters, product: value ? [value as string] : [] })
-          }
+          value={filters.product || []}
+          onChange={(value) => setFilters({ ...filters, product: value as string[] })}
+          multiple
         />
 
         <SearchableSelect

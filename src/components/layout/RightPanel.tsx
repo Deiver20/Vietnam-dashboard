@@ -33,20 +33,24 @@ export function RightPanel({ overview, totals, timeline }: RightPanelProps) {
 
   if (rightPanelCollapsed) {
     return (
-      <button
-        type="button"
-        onClick={() => setRightPanelCollapsed(false)}
-        className="fixed right-0 top-[112px] z-30 flex items-center gap-1.5 bg-blue text-white border border-blue-600 border-r-0 rounded-l-lg px-2 py-2 shadow-lg shadow-blue/20 hover:bg-blue-600 transition-all"
-        title={t.panel.open}
-      >
-        <PanelRightOpen className="w-4 h-4" />
-        <span className="text-xs font-medium">{t.panel.open}</span>
-      </button>
+      <div className="w-12 shrink-0 border-l border-navy-line bg-navy-darker/95 flex flex-col items-center pt-3">
+        <button
+          type="button"
+          onClick={() => setRightPanelCollapsed(false)}
+          className="flex flex-col items-center gap-1 px-1.5 py-2 rounded-md bg-blue text-white border border-blue-600 shadow-lg shadow-blue/20 hover:bg-blue-600 transition-all"
+          title={t.panel.open}
+        >
+          <PanelRightOpen className="w-4 h-4" />
+          <span className="text-[10px] font-semibold [writing-mode:vertical-rl] rotate-180">
+            {t.panel.open}
+          </span>
+        </button>
+      </div>
     );
   }
 
   return (
-    <aside className="fixed top-[112px] right-0 bottom-0 z-30 w-80 border-l border-navy-line bg-navy-darker/95 backdrop-blur-sm flex flex-col lg:sticky lg:top-[112px] lg:h-[calc(100vh-112px)]">
+    <aside className="w-80 shrink-0 border-l border-navy-line bg-navy-darker/95 backdrop-blur-sm flex flex-col">
       <div className="flex items-center justify-between p-3 border-b border-navy-line bg-navy-card/30">
         <PanelToggle />
         <button
@@ -60,9 +64,11 @@ export function RightPanel({ overview, totals, timeline }: RightPanelProps) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 flex flex-col">
         {rightPanelMode === "insights" ? (
-          <InsightsView overview={overview} totals={totals} timeline={timeline} />
+          <div className="flex-1 overflow-y-auto p-4">
+            <InsightsView overview={overview} totals={totals} timeline={timeline} />
+          </div>
         ) : (
           <ChatView overview={overview} totals={totals} />
         )}

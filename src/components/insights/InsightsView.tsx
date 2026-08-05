@@ -44,7 +44,7 @@ function InsightCard({ icon, label, value, sub, variant = "blue" }: InsightCardP
 }
 
 export function InsightsView({ overview, totals, timeline }: InsightsViewProps) {
-  const { locale } = useDashboard();
+  const { locale, filters } = useDashboard();
   const t = getTranslation(locale);
 
   const insights = useMemo(() => {
@@ -65,11 +65,11 @@ export function InsightsView({ overview, totals, timeline }: InsightsViewProps) 
       topCountry,
       topCountryShare,
       totalVolume,
-      yearRange: totals ? [totals.minYear, totals.maxYear] : [2020, 2026],
+      yearRange: [filters.yearStart, filters.yearEnd] as [number, number],
       latestYear: latestYear?.year,
       yearGrowth,
     };
-  }, [overview, totals, timeline]);
+  }, [overview, totals, timeline, filters.yearStart, filters.yearEnd]);
 
   return (
     <div className="space-y-3">

@@ -9,9 +9,14 @@ import {
   TradeFilterOptions,
   ALLOWED_PRODUCTS,
 } from "@/app/interfaces/trade/interface";
-import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { buildTradeQueryString, buildFilterOptionsQuery, buildFiltersAllQuery } from "@/app/lib/trade/query";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
+
+function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`);
@@ -54,15 +59,15 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
   const optionsRef = useRef<TradeFilterOptions>(EMPTY_OPTIONS);
 
   const loadData = useCallback(async (query: string) => {
-    const [overviewRes, totalsRes, timelineRes] = await Promise.all([
-      fetchJson<{ success: boolean; data: TradeOverviewItem[] }>(`/trade/overview${query}`),
-      fetchJson<{ success: boolean; data: TradeTotalImports }>(`/trade/total-imports${query}`),
-      fetchJson<{ success: boolean; data: TradeTimelineItem[] }>(`/trade/timeline${query}`),
-    ]);
+        const [overviewRes, totalsRes, timelineRes] = await Promise.all([
+          fetchJson<{ success: boolean; data: TradeOverviewItem[] }>(`/trade/overview${query}`),
+          fetchJson<{ success: boolean; data: TradeTotalImports }>(`/trade/total-imports${query}`),
+          fetchJson<{ success: boolean; data: TradeTimelineItem[] }>(`/trade/timeline${query}`),
+        ]);
 
-    setOverview(overviewRes.data || []);
-    setTotals(totalsRes.data || null);
-    setTimeline(timelineRes.data || []);
+        setOverview(overviewRes.data || []);
+        setTotals(totalsRes.data || null);
+        setTimeline(timelineRes.data || []);
 
     return totalsRes.data;
   }, []);
@@ -76,20 +81,20 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
       const newOptions: TradeFilterOptions = { ...EMPTY_OPTIONS };
       if (res.data) {
         newOptions.categories = res.data.category || [];
-        newOptions.products = (res.data.product || []).filter((p) => ALLOWED_PRODUCTS.includes(p));
+        newOptions.products = (res.data.product || [])
+          .filter((p) => ALLOWED_PRODUCTS.some(s => s.toLowerCase() === p.toLowerCase()));
         newOptions.originCountries = res.data.originCountry || [];
         newOptions.customs = res.data.customs || [];
         newOptions.importers = res.data.importer_clean || res.data.importer || [];
         newOptions.exporters = res.data.exporter_clean || res.data.exporter || [];
       }
 
-      const years = totalsData
-        ? Array.from(
-            { length: totalsData.maxYear - totalsData.minYear + 1 },
-            (_, i) => totalsData.minYear + i
-          )
-        : [];
-      newOptions.years = years;
+      if (totalsData) {
+        newOptions.years = Array.from(
+          { length: totalsData.maxYear - totalsData.minYear + 1 },
+          (_, i) => totalsData.minYear + i
+        );
+      }
 
       optionsRef.current = newOptions;
       setOptions(newOptions);
@@ -110,19 +115,25 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
       setError(null);
 
       try {
-        const query = buildTradeQueryString(filters);
-        const [totalsData] = await Promise.all([
-          loadData(query),
-          loadFilterOptions(query, null),
-        ]);
+        const dataQuery = buildTradeQueryString(filters);
+        const filtersAllQuery = buildFiltersAllQuery(filters);
+        console.log("[DEBUG] filters:", JSON.stringify(filters));
+        console.log("[DEBUG] dataQuery:", dataQuery);
+        console.log("[DEBUG] filtersAllQuery:", filtersAllQuery);
+        const totalsData = await loadData(dataQuery);
+        await loadFilterOptions(filtersAllQuery, totalsData);
 
         if (cancelled) return;
         if (totalsData) {
+          console.log("[DEBUG] totalsData received:", JSON.stringify(totalsData));
           const years = Array.from(
             { length: totalsData.maxYear - totalsData.minYear + 1 },
             (_, i) => totalsData.minYear + i
           );
+          console.log("[DEBUG] Setting years:", years);
           setOptions((prev) => ({ ...prev, years }));
+        } else {
+          console.log("[DEBUG] totalsData is null or undefined!");
         }
       } catch (err) {
         if (cancelled) return;

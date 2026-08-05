@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { Play, Pause, RotateCcw } from "lucide-react";
 import { RaceYearData } from "@/app/interfaces/trade/interface";
 import { Locale } from "@/app/interfaces";
@@ -18,7 +19,6 @@ interface BarRaceChartProps {
 }
 
 const ROW_HEIGHT = 34;
-const GAP = 4;
 
 function stringToHue(value: string): number {
   let hash = 0;
@@ -26,6 +26,16 @@ function stringToHue(value: string): number {
     hash = value.charCodeAt(i) + ((hash << 5) - hash);
   }
   return Math.abs(hash) % 360;
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+interface DisplayItem {
+  name: string;
+  value: number;
+  hue: number;
 }
 
 export function BarRaceChart({
@@ -37,65 +47,214 @@ export function BarRaceChart({
   topN = 10,
   interval = 1500,
 }: BarRaceChartProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const pausedElapsedRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
+  const isSlidingRef = useRef<boolean>(false);
+  const hasAutoPlayedRef = useRef<boolean>(false);
+  const yearIndexRef = useRef<number>(0);
+  const animateFnRef = useRef<((timestamp: number) => void) | null>(null);
 
-  const isAtEnd = currentIndex >= data.length - 1;
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [displayYear, setDisplayYear] = useState<number>(() =>
+    data.length > 0 ? data[0].year : 0
+  );
+  const [displayItems, setDisplayItems] = useState<DisplayItem[]>(() =>
+    data.length > 0
+      ? data[0].items.slice(0, topN).map((item) => ({
+          name: item.name,
+          value: item.value,
+          hue: stringToHue(item.name),
+        }))
+      : []
+  );
+  const [sliderValue, setSliderValue] = useState<number>(0);
 
   useEffect(() => {
-    if (!playing || data.length === 0) return;
+    const totalDuration = data.length * interval;
 
-    const id = setInterval(() => {
-      setCurrentIndex((prev) => {
-        if (prev >= data.length - 1) {
-          return prev;
+    const animate = (timestamp: number) => {
+      if (!startTimeRef.current) {
+        startTimeRef.current = timestamp;
+      }
+
+      const elapsed = timestamp - startTimeRef.current + pausedElapsedRef.current;
+
+      if (elapsed >= totalDuration) {
+        const lastYearIndex = data.length - 1;
+        const lastYearData = data[lastYearIndex];
+
+        if (lastYearData) {
+          const items = lastYearData.items
+            .slice(0, topN)
+            .map((item) => ({
+              name: item.name,
+              value: item.value,
+              hue: stringToHue(item.name),
+            }));
+          setDisplayItems(items);
+          setDisplayYear(lastYearData.year);
+          setSliderValue(lastYearIndex);
+          yearIndexRef.current = lastYearIndex;
         }
-        return prev + 1;
+
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        return;
+      }
+
+      const yearProgress = (elapsed % interval) / interval;
+      const rawYearIndex = Math.floor(elapsed / interval);
+      const yearIndex = Math.min(rawYearIndex, data.length - 1);
+      const nextYearIndex = Math.min(yearIndex + 1, data.length - 1);
+      const t = easeInOut(yearProgress);
+
+      if (yearIndex !== yearIndexRef.current) {
+        yearIndexRef.current = yearIndex;
+        if (!isSlidingRef.current) {
+          setSliderValue(yearIndex);
+        }
+      }
+
+      const currentYearData = data[yearIndex];
+      const nextYearData = data[nextYearIndex];
+
+      if (!currentYearData || !nextYearData) {
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      const currentMap = new Map(currentYearData.items.map((i) => [i.name, i]));
+      const nextMap = new Map(nextYearData.items.map((i) => [i.name, i]));
+
+      const allNames = new Set([...currentMap.keys(), ...nextMap.keys()]);
+
+      const interpolatedItems: DisplayItem[] = [];
+
+      allNames.forEach((name) => {
+        const currentItem = currentMap.get(name);
+        const nextItem = nextMap.get(name);
+        const currentValue = currentItem?.value ?? 0;
+        const nextValue = nextItem?.value ?? currentValue;
+
+        interpolatedItems.push({
+          name,
+          value: currentValue + (nextValue - currentValue) * t,
+          hue: stringToHue(name),
+        });
       });
-    }, interval);
 
-    return () => clearInterval(id);
-  }, [playing, data.length, interval]);
+      interpolatedItems.sort((a, b) => b.value - a.value);
+
+      setDisplayItems(interpolatedItems.slice(0, topN));
+      setDisplayYear(currentYearData.year);
+
+      if (isPlayingRef.current) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    animateFnRef.current = animate;
+  }, [data, interval, topN]);
 
   useEffect(() => {
-    if (currentIndex >= data.length && data.length > 0) {
-      setCurrentIndex(data.length - 1);
+    if (data.length > 0 && !hasAutoPlayedRef.current) {
+      hasAutoPlayedRef.current = true;
+      pausedElapsedRef.current = 0;
+      startTimeRef.current = performance.now();
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      rafRef.current = requestAnimationFrame(animateFnRef.current!);
     }
-  }, [data.length, currentIndex]);
+  }, [data, interval]);
+
+  const handlePlay = useCallback(() => {
+    if (isPlaying) {
+      pausedElapsedRef.current += performance.now() - (startTimeRef.current ?? 0);
+      isPlayingRef.current = false;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      setIsPlaying(false);
+    } else {
+      if (pausedElapsedRef.current >= data.length * interval) {
+        pausedElapsedRef.current = 0;
+        setSliderValue(0);
+        yearIndexRef.current = 0;
+      }
+      startTimeRef.current = performance.now();
+      isPlayingRef.current = true;
+      rafRef.current = requestAnimationFrame(animateFnRef.current!);
+      setIsPlaying(true);
+    }
+  }, [isPlaying, data.length, interval]);
+
+  const handleReplay = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    pausedElapsedRef.current = 0;
+    startTimeRef.current = performance.now();
+    isPlayingRef.current = true;
+    setSliderValue(0);
+    setIsPlaying(true);
+    rafRef.current = requestAnimationFrame(animateFnRef.current!);
+  }, []);
+
+  const handleSliderChange = useCallback((value: number) => {
+    setSliderValue(value);
+    isSlidingRef.current = true;
+
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    isPlayingRef.current = false;
+    setIsPlaying(false);
+
+    pausedElapsedRef.current = value * interval;
+    startTimeRef.current = performance.now();
+
+    const yearIndex = value;
+    const currentYearData = data[yearIndex];
+    if (currentYearData) {
+      const items = currentYearData.items
+        .slice(0, topN)
+        .map((item) => ({
+          name: item.name,
+          value: item.value,
+          hue: stringToHue(item.name),
+        }));
+      setDisplayItems(items);
+      setDisplayYear(currentYearData.year);
+      yearIndexRef.current = yearIndex;
+    }
+
+    setTimeout(() => {
+      isSlidingRef.current = false;
+    }, 100);
+  }, [interval, data, topN]);
+
+  const handleSliderRelease = useCallback(() => {
+    isSlidingRef.current = false;
+  }, []);
 
   useEffect(() => {
-    if (playing && currentIndex >= data.length - 1 && data.length > 0) {
-      setPlaying(false);
-    }
-  }, [currentIndex, data.length, playing]);
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
 
-  const currentYear = data[currentIndex]?.year ?? null;
-
-  const currentItems = useMemo(() => {
-    if (!data[currentIndex]) return [];
-    return [...data[currentIndex].items]
-      .sort((a, b) => b.value - a.value)
-      .slice(0, topN);
-  }, [data, currentIndex, topN]);
-
-  const maxValue = useMemo(() => {
-    if (currentItems.length === 0) return 1;
-    return Math.max(...currentItems.map((i) => i.value), 1);
-  }, [currentItems]);
-
-  const handleToggle = () => {
-    if (isAtEnd) {
-      setCurrentIndex(0);
-      setPlaying(true);
-      return;
-    }
-    setPlaying((p) => !p);
-  };
-
-  const handleReplay = () => {
-    setCurrentIndex(0);
-    setPlaying(true);
-  };
+  const maxValue = displayItems.length > 0 ? Math.max(...displayItems.map((i) => i.value), 1) : 1;
 
   if (data.length === 0) {
     return (
@@ -117,17 +276,23 @@ export function BarRaceChart({
           <p className="text-xs text-gray-4">{subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="text-3xl font-bold text-white tabular-nums leading-none">
-            {currentYear}
-          </div>
+          <motion.div
+            key={displayYear}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="text-3xl font-bold text-white tabular-nums leading-none"
+          >
+            {displayYear}
+          </motion.div>
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={handleToggle}
+              onClick={handlePlay}
               className="p-2 rounded-md bg-blue/10 text-blue hover:bg-blue/20 transition-colors"
-              aria-label={playing ? "Pause" : "Play"}
+              aria-label={isPlaying ? "Pause" : "Play"}
             >
-              {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             </button>
             <button
               type="button"
@@ -147,11 +312,10 @@ export function BarRaceChart({
           min={0}
           max={data.length - 1}
           step={1}
-          value={currentIndex}
-          onChange={(e) => {
-            setCurrentIndex(Number(e.target.value));
-            setPlaying(false);
-          }}
+          value={sliderValue}
+          onChange={(e) => handleSliderChange(Number(e.target.value))}
+          onMouseUp={handleSliderRelease}
+          onTouchEnd={handleSliderRelease}
           className="w-full h-1.5 bg-navy-line rounded-lg appearance-none cursor-pointer accent-blue"
         />
         <div className="flex justify-between text-[10px] text-gray-4 mt-1">
@@ -160,49 +324,64 @@ export function BarRaceChart({
         </div>
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-y-auto">
-        <div className="flex flex-col gap-1">
-          {currentItems.map((item, index) => {
-            const hue = stringToHue(item.name);
+      <div className="relative flex-1 min-h-0 overflow-hidden">
+        <motion.div className="flex flex-col gap-1">
+          {displayItems.map((item, index) => {
             const widthPct = (item.value / maxValue) * 100;
 
             return (
-              <div
+              <motion.div
                 key={item.name}
+                layout
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
                 className="flex items-center gap-3"
                 style={{ height: ROW_HEIGHT }}
                 title={`${item.name}: ${formatVolume(item.value)}`}
               >
-                <span className="w-5 text-xs font-mono text-gray-4 text-right">
+                <motion.span
+                  layout
+                  className="w-5 text-xs font-mono text-gray-4 text-right"
+                >
                   {index + 1}
-                </span>
+                </motion.span>
 
                 {dimension === "country" && (
                   <Flag country={item.name} className="w-6 h-4 rounded flex-shrink-0" />
                 )}
 
                 <div className="flex-1 min-w-0 relative h-full flex items-center">
-                  <div
+                  <motion.div
                     className="absolute left-0 top-0 bottom-0 rounded-md"
+                    animate={{ width: `${widthPct}%` }}
+                    transition={{
+                      duration: 0.1,
+                      ease: "linear",
+                    }}
                     style={{
-                      width: `${widthPct}%`,
-                      background: `linear-gradient(90deg, hsl(${hue}, 75%, 55%), hsl(${hue}, 75%, 45%))`,
+                      background: `linear-gradient(90deg, hsl(${item.hue}, 75%, 55%), hsl(${item.hue}, 75%, 45%))`,
                       opacity: 0.85,
-                      transition: "width 650ms cubic-bezier(0.4, 0, 0.2, 1)",
                     }}
                   />
-                  <span className="relative z-10 ml-3 text-xs font-medium text-white truncate max-w-[55%]">
+                  <motion.span
+                    layout
+                    className="relative z-10 ml-3 text-xs font-medium text-white truncate max-w-[55%]"
+                  >
                     {item.name}
-                  </span>
+                  </motion.span>
                 </div>
 
-                <span className="text-xs font-mono text-gray-3 text-right w-20 flex-shrink-0">
+                <motion.span
+                  layout
+                  className="text-xs font-mono text-gray-3 text-right w-20 flex-shrink-0"
+                >
                   {formatVolume(item.value)}
-                </span>
-              </div>
+                </motion.span>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </div>
     </div>
   );

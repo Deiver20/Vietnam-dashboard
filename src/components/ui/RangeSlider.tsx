@@ -37,6 +37,10 @@ export function RangeSlider({
   const startPct = ((startYear - min) / range) * 100;
   const endPct = ((endYear - min) / range) * 100;
 
+  // Minimum 1-year gap: start can never equal end, so handles never overlap.
+  const clampStart = (value: number) => Math.max(min, Math.min(value, endYear - 1));
+  const clampEnd = (value: number) => Math.min(max, Math.max(value, startYear + 1));
+
   const valueFromClientX = useCallback(
     (clientX: number) => {
       const track = trackRef.current;
@@ -50,6 +54,7 @@ export function RangeSlider({
 
   const handlePointerDown = (handle: "start" | "end") => (e: React.PointerEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragging(handle);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -58,17 +63,33 @@ export function RangeSlider({
     if (!dragging) return;
     const value = valueFromClientX(e.clientX);
     if (dragging === "start") {
-      onChange(Math.min(value, endYear), endYear);
+      onChange(clampStart(value), endYear);
     } else {
-      onChange(startYear, Math.max(value, startYear));
+      onChange(startYear, clampEnd(value));
     }
   };
 
   const stopDragging = () => setDragging(null);
 
+  const handleTrackClick = (e: React.PointerEvent) => {
+    if (e.target !== trackRef.current) return;
+    const value = valueFromClientX(e.clientX);
+    const startDist = Math.abs(value - startYear);
+    const endDist = Math.abs(value - endYear);
+    if (startDist <= endDist) {
+      onChange(clampStart(value), endYear);
+    } else {
+      onChange(startYear, clampEnd(value));
+    }
+  };
+
   return (
     <div className={`relative select-none py-3 ${className}`}>
-      <div ref={trackRef} className="relative h-1.5 rounded-full bg-navy-line">
+      <div
+        ref={trackRef}
+        onPointerDown={handleTrackClick}
+        className="relative h-1.5 rounded-full bg-navy-line cursor-pointer"
+      >
         <div
           className="absolute h-1.5 rounded-full"
           style={{ left: `${startPct}%`, right: `${100 - endPct}%`, backgroundColor: accentColor }}
@@ -78,24 +99,24 @@ export function RangeSlider({
           label="Año inicial"
           value={startYear}
           min={min}
-          max={endYear}
+          max={endYear - 1}
           accentColor={accentColor}
           onPointerDown={handlePointerDown("start")}
           onPointerMove={handlePointerMove}
           onPointerUp={stopDragging}
-          onKey={(v) => onChange(Math.min(v, endYear), endYear)}
+          onKey={(v) => onChange(clampStart(v), endYear)}
         />
         <Handle
           position={endPct}
           label="Año final"
           value={endYear}
-          min={startYear}
+          min={startYear + 1}
           max={max}
           accentColor={accentColor}
           onPointerDown={handlePointerDown("end")}
           onPointerMove={handlePointerMove}
           onPointerUp={stopDragging}
-          onKey={(v) => onChange(startYear, Math.max(v, startYear))}
+          onKey={(v) => onChange(startYear, clampEnd(v))}
         />
       </div>
     </div>
@@ -148,7 +169,7 @@ function Handle({
         borderColor: accentColor,
         boxShadow: focused ? `0 0 0 3px ${accentColor}66` : undefined,
       }}
-      className="absolute top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 bg-navy-card shadow-md transition-transform hover:scale-110 focus:outline-none active:cursor-grabbing"
+      className="absolute top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 bg-navy-card shadow-md transition-transform hover:scale-110 focus:outline-none active:cursor-grabbing"
     />
   );
 }

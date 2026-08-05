@@ -11,6 +11,7 @@ interface ImportsByCountryChartProps {
   title: string;
   subtitle: string;
   locale: Locale;
+  interval?: number;
 }
 
 export function ImportsByCountryChart({
@@ -18,6 +19,7 @@ export function ImportsByCountryChart({
   title,
   subtitle,
   locale,
+  interval,
 }: ImportsByCountryChartProps) {
   const { data, loading, error } = useRaceData(filters, "country");
 
@@ -45,6 +47,7 @@ export function ImportsByCountryChart({
       subtitle={subtitle}
       dimension="country"
       locale={locale}
+      interval={interval}
     />
   );
 }

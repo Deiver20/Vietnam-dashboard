@@ -1,0 +1,22 @@
+npm warn Unknown project config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown project config "only-built-dependencies". This will stop working in the next major version of npm.
+npm warn Unknown project config "minimum-release-age". This will stop working in the next major version of npm.
+
+> dashboard-vietnam@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by process 240, using available port 3002 instead.
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.1.17:3002
+- Environments: .env.local
+✓ Ready in 615ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:3000
+- PID:          240
+- Dir:          C:\Users\User\Documents\AgriglobalMarket\Agriglobal Opencode\Dashboard Vietnam
+- Log:          .next\dev\logs\next-development.log
+
+Run taskkill /PID 240 /F to stop it.
+[?25h

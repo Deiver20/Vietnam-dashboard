@@ -5,55 +5,64 @@ import { usePathname } from "next/navigation";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { DASHBOARD_TABS } from "@/app/interfaces/trade/interface";
-import { LayoutDashboard, X } from "lucide-react";
+import { LayoutDashboard, Menu, X } from "lucide-react";
+import PageIcon from "@/components/dashboard/PageIcon";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { locale, mobileMenuOpen, setMobileMenuOpen } = useDashboard();
+  const { locale, sidebarCollapsed, toggleSidebar } = useDashboard();
   const t = getTranslation(locale);
 
-  const handleLinkClick = () => {
-    setMobileMenuOpen(false);
-  };
+  const isOpen = !sidebarCollapsed;
+
+  const mobileVisibility = isOpen ? "max-lg:flex" : "max-lg:hidden";
 
   return (
     <>
-      {/* Backdrop */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-          aria-hidden="true"
+      {isOpen && (
+        <button
+          type="button"
+          aria-label={t.common.close}
+          onClick={toggleSidebar}
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
         />
       )}
 
-      {/* Mobile drawer */}
+      {!isOpen && (
+        <button
+          onClick={toggleSidebar}
+          aria-label={t.common.open}
+          title={t.common.open}
+          className="fixed top-3 left-3 z-40 p-2.5 rounded-sm bg-navy-darker/90 border border-navy-line text-white shadow-lg shadow-black/40 hover:bg-navy-card transition-colors lg:hidden"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      )}
+
       <aside
-        className={`
-          fixed top-0 left-0 z-50 w-72 h-full flex-col bg-navy-darker border-r border-navy-line shadow-2xl
-          transform transition-transform duration-300 ease-out
+        className={`w-72 h-full bg-navy-darker border-r border-navy-line shrink-0 overflow-y-auto flex flex-col
+          fixed inset-y-0 left-0 z-50
           lg:hidden
-          ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
+          ${mobileVisibility}`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-navy-line">
+        <div className="flex items-center justify-between p-3 border-b border-navy-line min-h-[56px]">
           <Link
             href="/dashboard/imports-overview"
-            onClick={handleLinkClick}
-            className="flex items-center gap-3"
+            onClick={toggleSidebar}
+            className="flex items-center gap-3 min-w-0"
           >
-            <div className="w-8 h-8 rounded-sm bg-gradient-to-br from-blue to-blue-soft flex items-center justify-center">
+            <div className="w-8 h-8 rounded-sm bg-gradient-to-br from-blue to-blue-soft flex items-center justify-center shrink-0">
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <h2 className="font-semibold text-white leading-tight text-sm">Agriglobal Market</h2>
-              <p className="text-xs text-gray-4">{t.dashboard.title}</p>
-            </div>
+            <span className="font-semibold text-white text-sm truncate">
+              Agriglobal Market
+            </span>
           </Link>
           <button
-            onClick={() => setMobileMenuOpen(false)}
-            className="p-1.5 rounded-sm text-gray-3 hover:text-white hover:bg-navy-card transition-colors"
+            onClick={toggleSidebar}
+            className="p-2 rounded-sm text-gray-3 hover:text-white hover:bg-navy-card transition-colors shrink-0"
             aria-label={t.common.close}
+            title={t.common.close}
           >
             <X className="w-5 h-5" />
           </button>
@@ -62,39 +71,59 @@ export function Sidebar() {
         <div className="p-4 border-b border-navy-line">
           <Link
             href="/dashboard/imports-overview"
-            onClick={handleLinkClick}
+            onClick={toggleSidebar}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm font-medium transition-colors ${
               pathname.startsWith("/dashboard")
                 ? "bg-blue/15 text-blue-soft border border-blue/30"
                 : "text-gray-3 hover:bg-navy-card hover:text-white"
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" />
-            {t.nav.dashboard}
+            <LayoutDashboard className="w-4 h-4 shrink-0" />
+            <span>{t.nav.dashboard}</span>
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-          {DASHBOARD_TABS.map((tab) => {
+        <nav className="flex-1 p-4 space-y-1">
+          {DASHBOARD_TABS.map((tab, i) => {
             const href = `/dashboard/${tab.id}`;
             const isActive = pathname === href;
+            const label = t.nav[tab.labelKey];
 
             return (
               <Link
                 key={tab.id}
                 href={href}
-                onClick={handleLinkClick}
-                className={`block px-3 py-2.5 rounded-sm text-sm transition-colors ${
+                onClick={toggleSidebar}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-sm text-sm transition-colors ${
                   isActive
                     ? "bg-navy-card text-white border-l-2 border-blue"
                     : "text-gray-4 hover:bg-navy-card hover:text-white"
                 }`}
               >
-                {t.nav[tab.labelKey]}
+                <PageIcon index={i} className="w-[18px] h-[18px] shrink-0" />
+                <span>{label}</span>
               </Link>
             );
           })}
         </nav>
+
+        <div className="p-4 border-t border-navy-line">
+          <div className="flex items-center bg-navy-card/80 rounded-sm border border-navy-line p-1 justify-center">
+            {(["en", "es", "fr", "pt"] as const).map((code) => (
+              <button
+                key={code}
+                onClick={() => useDashboard.getState().setLocale(code)}
+                className={`px-2 py-1 text-[11px] font-semibold rounded transition-all ${
+                  locale === code
+                    ? "bg-blue text-white shadow-sm"
+                    : "text-gray-3 hover:text-white hover:bg-navy-line"
+                }`}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
       </aside>
     </>
   );

@@ -84,6 +84,8 @@ const countryToCode: Record<string, string> = {
   "viet nam": "VN",
   zimbabwe: "ZW",
   oman: "OM",
+  "saudi arabia": "SA",
+  mauritius: "MU",
 };
 
 export function getCountryCode(country?: string | null): string | null {

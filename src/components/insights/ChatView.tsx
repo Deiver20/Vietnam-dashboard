@@ -102,8 +102,8 @@ export function ChatView({ overview, totals }: ChatViewProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1 min-h-[200px]">
+    <div className="flex flex-col flex-1 min-h-0 p-4">
+      <div className="flex-1 overflow-y-auto space-y-4 pr-1">
         {chatMessages.length === 0 && (
           <div className="text-center py-8 text-gray-4 text-sm">
             <Bot className="w-10 h-10 mx-auto mb-3 text-blue-soft/60" />
