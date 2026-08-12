@@ -4,6 +4,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { ForecastPoint, ForecastModel } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
+import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -49,6 +50,8 @@ function formatXAxis(v: string, frequency: "D" | "M"): string {
 export function ProjectionChart({ points, loading, frequency, product }: ProjectionChartProps) {
   const { locale } = useDashboard();
   const t = getTranslation(locale);
+  const { ref: cardRef, light } = useScopeLight();
+  const pal = chartPalette(light);
 
   if (loading && points.length === 0) {
     return (
@@ -105,7 +108,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
   });
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[460px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[460px] flex flex-col">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-white">{t.projection.forecastChart}</h3>
         <p className="text-[10px] text-gray-5 mt-1">
@@ -121,18 +124,18 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
                 <stop offset="100%" stopColor="#FF5C5C" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#1a2b40" strokeDasharray="3 3" />
+            <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
-              stroke="#94959b"
+              stroke={pal.axis}
               fontSize={10}
               tickFormatter={(v: string) => formatXAxis(v, frequency)}
               minTickGap={32}
             />
-            <YAxis stroke="#94959b" fontSize={10} tickFormatter={(v: number) => formatCIFPrice(v)} />
+            <YAxis stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => formatCIFPrice(v)} />
             <Tooltip
-              contentStyle={{ background: "#061224", border: "1px solid #1a2b40", borderRadius: 6, fontSize: 12 }}
-              labelStyle={{ color: "#c5c6cc" }}
+              contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
+              labelStyle={{ color: pal.tooltipLabel }}
               labelFormatter={(label) => formatXAxis(label as string, frequency)}
               formatter={(v, name) => {
                 const label = String(name ?? "");
@@ -142,7 +145,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
                 return [formatCIFPrice(v as number), label];
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 10, color: "#c5c6cc" }} />
+            <Legend wrapperStyle={{ fontSize: 10, color: pal.legend }} />
             <Area type="monotone" dataKey="EnsembleBand" name={`Ensemble ${t.projection.p10}-${t.projection.p90}`} stroke="none" fill="url(#ensemble-band)" />
             {modelOrder.map((m) => (
               <Line

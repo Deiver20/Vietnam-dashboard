@@ -86,12 +86,17 @@ export function HsCodesView() {
     <div className="flex flex-col gap-4">
       {/* HS Code banner — recycled from the AGM-Front dashboard. */}
       <div
-        className="relative overflow-hidden rounded-[14px] border p-6"
+        className="group relative overflow-hidden rounded-[14px] border p-6"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
       >
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
+          style={{ backgroundColor: T.accent }}
+        />
         <div className="relative z-10 flex flex-col items-center text-center">
           <h3
-            className="mb-4 text-lg font-bold tracking-[-0.01em]"
+            className="mb-4 text-base font-semibold tracking-[-0.01em]"
             style={{ color: T.textPrimary }}
           >
             HS Codes

@@ -10,6 +10,9 @@ export function getEffectiveProducts(filters: TradeFilters): string[] {
 function buildQueryStringFromFilters(filters: TradeFilters, useDefaults: boolean): string {
   const params = new URLSearchParams();
 
+  if (filters.countryCode) params.set("countryCode", filters.countryCode);
+  if (filters.industry) params.set("industry", filters.industry);
+
   if (filters.category && filters.category.length > 0) {
     params.set("category", filters.category.join(","));
   }

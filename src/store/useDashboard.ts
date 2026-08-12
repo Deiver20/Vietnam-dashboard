@@ -58,7 +58,7 @@ export const useDashboard = create<TradeDashboardState>()(
     }),
     {
       name: "trade-dashboard-store",
-      version: 3,
+      version: 4,
       partialize: (state) => ({
         locale: state.locale,
         rightPanelCollapsed: state.rightPanelCollapsed,
@@ -75,6 +75,13 @@ export const useDashboard = create<TradeDashboardState>()(
           return {
             ...old,
             filters: { ...initialFilters, ...(old.filters ?? {}) },
+          } as TradeDashboardState;
+        }
+        if (version < 4) {
+          const old = (persistedState as Partial<TradeDashboardState>) ?? {};
+          return {
+            ...old,
+            filters: { ...initialFilters },
           } as TradeDashboardState;
         }
         return persistedState as TradeDashboardState;

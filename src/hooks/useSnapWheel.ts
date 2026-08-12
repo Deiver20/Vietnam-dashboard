@@ -18,7 +18,10 @@ export interface SnapWheelOptions {
  */
 export default function useSnapWheel(options: SnapWheelOptions) {
   const cbRef = useRef(options);
-  cbRef.current = options;
+
+  useEffect(() => {
+    cbRef.current = options;
+  });
 
   useEffect(() => {
     const threshold = cbRef.current.threshold ?? 40;
@@ -38,12 +41,35 @@ export default function useSnapWheel(options: SnapWheelOptions) {
       else cbRef.current.onPrev();
     };
 
+    const isScrollable = (el: HTMLElement | null): boolean => {
+      let node: HTMLElement | null = el;
+      while (node && node !== document.body) {
+        const overflowY = getComputedStyle(node).overflowY;
+        if (
+          (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") &&
+          node.scrollHeight > node.clientHeight + 1
+        ) {
+          return true;
+        }
+        node = node.parentElement;
+      }
+      return false;
+    };
+
+    // Native scrolling wins whenever the cursor is over an element that can
+    // actually scroll (portaled overlays like the filter dropdowns land in
+    // document.body, outside [data-native-wheel]) — otherwise the snap would
+    // flip pages while the user is trying to scroll a list.
+    const isNativeScrollTarget = (target: EventTarget | null): boolean => {
+      const el = target instanceof Element ? (target as HTMLElement) : null;
+      if (!el) return false;
+      if (el.closest("[data-native-wheel]")) return true;
+      if (el.closest("[class*='leva-']")) return true;
+      return isScrollable(el);
+    };
+
     const handleWheel = (e: WheelEvent) => {
-      // Overlay panels (e.g. the Leva editor) and any region marked
-      // data-native-wheel keep native wheel scrolling.
-      const target = e.target as HTMLElement | null;
-      if (target?.closest?.("[class*='leva-']")) return;
-      if (target?.closest?.("[data-native-wheel]")) return;
+      if (isNativeScrollTarget(e.target)) return;
       e.preventDefault();
       const now = performance.now();
       const scale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
@@ -69,6 +95,10 @@ export default function useSnapWheel(options: SnapWheelOptions) {
 
     let touchStartY: number | null = null;
     const handleTouchStart = (e: TouchEvent) => {
+      if (isNativeScrollTarget(e.target)) {
+        touchStartY = null;
+        return;
+      }
       touchStartY = e.touches[0]?.clientY ?? null;
     };
     const handleTouchEnd = (e: TouchEvent) => {

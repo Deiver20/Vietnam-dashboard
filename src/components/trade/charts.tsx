@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import {
   LineChart as ReLineChart, Line,
   BarChart as ReBarChart, Bar,
@@ -98,6 +98,16 @@ function fmtMil(v: number): string {
   return v.toFixed(0);
 }
 
+function readableInk(hex: string): string {
+  const m = hex.replace("#", "");
+  const r = parseInt(m.slice(0, 2), 16);
+  const g = parseInt(m.slice(2, 4), 16);
+  const b = parseInt(m.slice(4, 6), 16);
+  if (![r, g, b].every(Number.isFinite)) return "#ffffff";
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return lum > 150 ? "#06254B" : "#ffffff";
+}
+
 export function makeFormatters(unit: { short: string; per: string } = { short: "mt", per: "mt" }) {
   return {
     unit: (v: number) => fmtUnit(v, unit.short),
@@ -155,6 +165,7 @@ function ChartTooltip({ active, payload, label, yFormat, theme }: ChartTooltipPr
 
 export function LineChart<T extends object = Record<string, unknown>>({
   datos, xKey, series, yFormat, yLabel, altura = 320, mostrarEtiquetas = false,
+  etiquetasFinales = false,
 }: {
   datos: readonly T[];
   xKey: string;
@@ -163,9 +174,39 @@ export function LineChart<T extends object = Record<string, unknown>>({
   yLabel?: string;
   altura?: number;
   mostrarEtiquetas?: boolean;
+  etiquetasFinales?: boolean;
 }) {
   const T = useTradeTheme();
-  if (!datos.length) return <EmptyChart altura={altura} />;
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [ends, setEnds] = useState<Array<{ key: string; x: number; y: number }>>([]);
+
+  useEffect(() => {
+    if (!etiquetasFinales) {
+      setEnds([]);
+      return;
+    }
+    const measure = () => {
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const curves = wrap.querySelectorAll(".recharts-line-curve");
+      if (curves.length !== series.length) return;
+      const measured = Array.from(curves).map((path, i) => {
+        const p = path as SVGPathElement;
+        const len = p.getTotalLength();
+        const pt = p.getPointAtLength(len);
+        return { key: series[i].key, x: pt.x, y: pt.y };
+      });
+      setEnds(prev => {
+        const same = prev.length === measured.length && prev.every((e, i) =>
+          Math.abs(e.x - measured[i].x) < 0.5 && Math.abs(e.y - measured[i].y) < 0.5 && e.key === measured[i].key);
+        return same ? prev : measured;
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(() => measure());
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, [datos, series, etiquetasFinales, altura]);
 
   const tickStyle = { fontSize: 11, fill: T.axisText, fontFamily: FONT };
 
@@ -178,59 +219,142 @@ export function LineChart<T extends object = Record<string, unknown>>({
   }
   const [domainMin, domainMax] = niceDomain(allValues);
 
+  const rightPad = etiquetasFinales ? 120 : 24;
+
+  const pills = useMemo(() => {
+    if (!etiquetasFinales || ends.length === 0) return [] as Array<{
+      key: string; nombre: string; color: string;
+      x: number; y: number; top: number; h: number; w: number; leader: boolean;
+    }>;
+    const H = 18;
+    const GAP = 3;
+    const items = ends
+      .map(e => {
+        const s = series.find(se => se.key === e.key);
+        if (!s) return null;
+        return { key: e.key, nombre: s.nombre, color: s.color, x: e.x, y: e.y };
+      })
+      .filter((x): x is { key: string; nombre: string; color: string; x: number; y: number } => x !== null);
+    const sorted = [...items].sort((a, b) => a.y - b.y);
+    const resolved = sorted.map(it => ({ ...it, top: it.y - H / 2, h: H, w: Math.max(44, it.nombre.length * 6.6 + 16), leader: false }));
+    for (let i = 1; i < resolved.length; i++) {
+      const minTop = resolved[i - 1].top + H + GAP;
+      if (resolved[i].top < minTop) resolved[i].top = minTop;
+    }
+    for (const p of resolved) {
+      p.leader = Math.abs(p.top - (p.y - H / 2)) > 0.5;
+    }
+    return resolved;
+  }, [etiquetasFinales, ends, series]);
+
+  if (!datos.length) return <EmptyChart altura={altura} />;
+
   return (
-    <ResponsiveContainer width="100%" height={altura} minWidth={1} minHeight={1}>
-      <ReLineChart data={datos} margin={{ top: 10, right: 24, left: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
-        <XAxis dataKey={xKey} tick={tickStyle} axisLine={{ stroke: T.border }} tickLine={false} />
-        <YAxis
-          domain={[domainMin, domainMax]}
-          allowDataOverflow={false}
-          tick={tickStyle}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(v) => yFormat ? yFormat(Number(v)) : String(v)}
-          label={yLabel ? {
-            value: yLabel, angle: -90, position: "insideLeft",
-            style: { fontSize: 11, fill: T.axisText, fontFamily: FONT },
-          } : undefined}
-        />
-        <Tooltip
-          content={(p: ChartTooltipProps) => <ChartTooltip {...p} yFormat={yFormat} theme={T} />}
-          cursor={{ stroke: T.borderStrong, strokeWidth: 1 }}
-        />
-        <Legend
-          iconType="circle"
-          wrapperStyle={{ fontSize: 11, paddingTop: 8, fontFamily: FONT }}
-          formatter={(value) => {
-            const serie = series.find(s => s.nombre === value || s.key === value);
-            const color = serie?.color ?? T.textPrimary;
-            return <span style={{ color, fontWeight: 600 }}>{value}</span>;
-          }}
-        />
-        {series.map(s => (
-          <Line
-            key={s.key}
-            type="monotone"
-            dataKey={s.key}
-            name={s.nombre}
-            stroke={s.color}
-            strokeWidth={2.25}
-            strokeDasharray={s.dash}
-            dot={{ r: 3, fill: s.color, stroke: "#fff", strokeWidth: 1.5 }}
-            activeDot={{ r: 5, fill: s.color, stroke: "#fff", strokeWidth: 2 }}
-            connectNulls
-            label={mostrarEtiquetas && yFormat ? {
-              position: "top",
-              fontSize: 10,
-              fontWeight: 600,
-              fill: s.color,
-              formatter: (v: unknown) => yFormat(Number(v)),
+    <div ref={wrapRef} className="relative" style={{ width: "100%", height: altura }}>
+      <ResponsiveContainer width="100%" height={altura} minWidth={1} minHeight={1}>
+        <ReLineChart data={datos} margin={{ top: 10, right: rightPad, left: 8, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={T.axisLine} vertical={false} />
+          <XAxis dataKey={xKey} tick={tickStyle} axisLine={{ stroke: T.border }} tickLine={false} />
+          <YAxis
+            domain={[domainMin, domainMax]}
+            allowDataOverflow={false}
+            tick={tickStyle}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) => yFormat ? yFormat(Number(v)) : String(v)}
+            label={yLabel ? {
+              value: yLabel, angle: -90, position: "insideLeft",
+              style: { fontSize: 11, fill: T.axisText, fontFamily: FONT },
             } : undefined}
           />
-        ))}
-      </ReLineChart>
-    </ResponsiveContainer>
+          <Tooltip
+            content={(p: ChartTooltipProps) => <ChartTooltip {...p} yFormat={yFormat} theme={T} />}
+            cursor={{ stroke: T.borderStrong, strokeWidth: 1 }}
+          />
+          <Legend
+            iconType="circle"
+            wrapperStyle={{ fontSize: 11, paddingTop: 8, fontFamily: FONT }}
+            formatter={(value) => {
+              return <span style={{ color: T.textPrimary, fontWeight: 600 }}>{value}</span>;
+            }}
+          />
+          {series.map(s => (
+            <Line
+              key={s.key}
+              type="monotone"
+              dataKey={s.key}
+              name={s.nombre}
+              stroke={s.color}
+              strokeWidth={2.25}
+              strokeDasharray={s.dash}
+              dot={{ r: 3, fill: s.color, stroke: T.textPrimary, strokeWidth: 1.5 }}
+              activeDot={{ r: 5, fill: s.color, stroke: T.textPrimary, strokeWidth: 2 }}
+              connectNulls
+              isAnimationActive={false}
+              label={mostrarEtiquetas && yFormat ? {
+                position: "top",
+                fontSize: 10,
+                fontWeight: 600,
+                fill: s.color,
+                formatter: (v: unknown) => yFormat(Number(v)),
+              } : undefined}
+            />
+          ))}
+        </ReLineChart>
+      </ResponsiveContainer>
+      {etiquetasFinales && pills.length > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10" style={{ fontFamily: FONT }}>
+          <svg width="100%" height={altura} style={{ position: "absolute", inset: 0 }}>
+            {pills.filter(p => p.leader).map(p => {
+              const x0 = p.x + 3;
+              const y0 = p.y;
+              const x1 = p.x + 6;
+              const y1 = p.top + p.h / 2;
+              const dx = x1 - x0;
+              const dy = y1 - y0;
+              const len = Math.hypot(dx, dy) || 1;
+              const ux = dx / len;
+              const uy = dy / len;
+              const size = 5;
+              const bx = x1 - ux * size;
+              const by = y1 - uy * size;
+              const px = -uy;
+              const py = ux;
+              return (
+                <g key={p.key}>
+                  <line x1={x0} y1={y0} x2={x1} y2={y1} stroke={p.color} strokeWidth={1.2} opacity={0.85} />
+                  <polygon
+                    points={`${x1},${y1} ${bx + px * size * 0.45},${by + py * size * 0.45} ${bx - px * size * 0.45},${by - py * size * 0.45}`}
+                    fill={p.color}
+                    opacity={0.9}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+          {pills.map(p => (
+            <div
+              key={p.key}
+              className="absolute flex items-center justify-center whitespace-nowrap font-bold"
+              style={{
+                left: p.x + 6,
+                top: p.top,
+                height: p.h,
+                width: p.w,
+                borderRadius: p.h / 2,
+                backgroundColor: p.color,
+                color: readableInk(p.color),
+                fontSize: 10,
+                padding: "0 8px",
+                boxSizing: "border-box",
+              }}
+            >
+              {p.nombre}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -268,7 +392,7 @@ export function BarChart<T extends object = Record<string, unknown>>({
         layout={isHorizontal ? "vertical" : "horizontal"}
         margin={{ top: 10, right: mostrarEtiquetas ? 50 : 16, left: 0, bottom: 0 }}
       >
-        <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={!isHorizontal} horizontal={isHorizontal} />
+        <CartesianGrid strokeDasharray="3 3" stroke={T.axisLine} vertical={!isHorizontal} horizontal={isHorizontal} />
         {isHorizontal ? (
           <>
             <XAxis
@@ -457,7 +581,7 @@ function RibbonInner({
             height={Math.max(0, h - (j === rank.length - 1 ? 0 : 2))}
             rx={j === 0 ? 3 : 0}
             fill={serie.color}
-            stroke={isHover ? "#ffffff" : "none"}
+            stroke={isHover ? T.textPrimary : "none"}
             strokeWidth={1.2}
           />
           {rank.length > 1 && h > 16 && (
@@ -507,7 +631,7 @@ function RibbonInner({
       <svg width={width} height={height} role="img" aria-label="Ribbon chart">
         {ticks.map(tick => (
           <g key={`t-${tick}`}>
-            <line x1={M.left} x2={M.left + plotW} y1={yAt(tick)} y2={yAt(tick)} stroke={T.border} strokeDasharray="3 3" />
+            <line x1={M.left} x2={M.left + plotW} y1={yAt(tick)} y2={yAt(tick)} stroke={T.axisLine} strokeDasharray="3 3" />
             <text x={M.left - 8} y={yAt(tick) + 3.5} textAnchor="end" fontSize={10} fill={T.axisText} fontFamily={FONT}>
               {yFormat ? yFormat(tick) : String(tick)}
             </text>
@@ -535,7 +659,7 @@ function RibbonInner({
             x2={xAt(hoverIdx) + barW / 2}
             y1={hoverBand.top}
             y2={hoverBand.top}
-            stroke="#ffffff"
+            stroke={T.textPrimary}
             strokeWidth={1.5}
           />
         )}
@@ -684,7 +808,7 @@ export function AreaChart<T extends object = Record<string, unknown>>({
             ))}
           </defs>
         )}
-        <CartesianGrid strokeDasharray="3 3" stroke={T.border} vertical={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke={T.axisLine} vertical={false} />
         <XAxis dataKey={xKey} tick={tickStyle} axisLine={{ stroke: T.border }} tickLine={false} />
         <YAxis
           domain={[domainMin, domainMax]}

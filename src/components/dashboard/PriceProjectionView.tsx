@@ -22,6 +22,7 @@ import { ProjectedValuesTable } from "@/components/projection/ProjectedValuesTab
 import { ForecastFrequency, DAILY_HORIZONS, MONTHLY_HORIZONS } from "@/app/interfaces/trade/projection";
 import { formatDateTime } from "@/app/lib/functions/formatters";
 import { BarChart3, Clock, Database, LineChart, Loader2, Sparkles } from "lucide-react";
+import { CardHeader } from "@/components/trade/CardHeader";
 
 type SubTab = "analysis" | "forecast";
 
@@ -91,12 +92,7 @@ export function PriceProjectionView() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-white">
-          {t.projection.title}
-        </h1>
-        <p className="text-sm text-gray-4">{t.projection.subtitle}</p>
-      </div>
+      <CardHeader title={t.projection.title} subtitle={t.projection.subtitle} />
 
       <div className="flex items-center gap-1 border-b border-navy-line">
         <button

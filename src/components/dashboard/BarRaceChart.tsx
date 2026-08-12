@@ -7,6 +7,7 @@ import { RaceYearData } from "@/app/interfaces/trade/interface";
 import { Locale } from "@/app/interfaces";
 import { formatVolume } from "@/app/lib/functions/formatters";
 import { Flag } from "@/components/ui/Flag";
+import { CardHeader } from "@/components/trade/CardHeader";
 
 interface BarRaceChartProps {
   data: RaceYearData[];
@@ -16,6 +17,9 @@ interface BarRaceChartProps {
   locale: Locale;
   topN?: number;
   interval?: number;
+  /** Cambia cada vez que la pestaña se vuelve activa: fuerza un replay
+   *  completo desde el primer año aunque el componente no se remonte. */
+  runKey?: number;
 }
 
 const ROW_HEIGHT = 34;
@@ -46,13 +50,14 @@ export function BarRaceChart({
   locale,
   topN = 10,
   interval = 1500,
+  runKey = 0,
 }: BarRaceChartProps) {
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const pausedElapsedRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
   const isSlidingRef = useRef<boolean>(false);
-  const hasAutoPlayedRef = useRef<boolean>(false);
+  const playedRef = useRef<boolean>(false);
   const yearIndexRef = useRef<number>(0);
   const animateFnRef = useRef<((timestamp: number) => void) | null>(null);
 
@@ -79,6 +84,11 @@ export function BarRaceChart({
         startTimeRef.current = timestamp;
       }
 
+      if (isPlayingRef.current && !playedRef.current) {
+        playedRef.current = true;
+        setIsPlaying(true);
+      }
+
       const elapsed = timestamp - startTimeRef.current + pausedElapsedRef.current;
 
       if (elapsed >= totalDuration) {
@@ -100,6 +110,7 @@ export function BarRaceChart({
         }
 
         isPlayingRef.current = false;
+        playedRef.current = false;
         setIsPlaying(false);
         if (rafRef.current) {
           cancelAnimationFrame(rafRef.current);
@@ -163,15 +174,20 @@ export function BarRaceChart({
   }, [data, interval, topN]);
 
   useEffect(() => {
-    if (data.length > 0 && !hasAutoPlayedRef.current) {
-      hasAutoPlayedRef.current = true;
-      pausedElapsedRef.current = 0;
-      startTimeRef.current = performance.now();
-      isPlayingRef.current = true;
-      setIsPlaying(true);
-      rafRef.current = requestAnimationFrame(animateFnRef.current!);
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
     }
-  }, [data, interval]);
+    pausedElapsedRef.current = 0;
+    isSlidingRef.current = false;
+    playedRef.current = false;
+    isPlayingRef.current = data.length > 0;
+    if (data.length === 0) return;
+    // -1 hace que el primer frame del bucle resincronice año y slider a 0.
+    yearIndexRef.current = -1;
+    startTimeRef.current = performance.now();
+    rafRef.current = requestAnimationFrame(animateFnRef.current!);
+  }, [runKey, data, topN]);
 
   const handlePlay = useCallback(() => {
     if (isPlaying) {
@@ -258,9 +274,13 @@ export function BarRaceChart({
 
   if (data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col">
-        <h3 className="text-base font-semibold text-white mb-1">{title}</h3>
-        <p className="text-xs text-gray-4 mb-6">{subtitle}</p>
+      <div className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col overflow-hidden">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
+          style={{ backgroundColor: "var(--trade-accent)" }}
+        />
+        <CardHeader title={title} subtitle={subtitle} />
         <div className="flex-1 flex items-center justify-center text-sm text-gray-4">
           {locale === "es" ? "No hay datos disponibles" : locale === "fr" ? "Aucune donnée disponible" : locale === "pt" ? "Nenhum dado disponível" : "No data available"}
         </div>
@@ -269,42 +289,47 @@ export function BarRaceChart({
   }
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-base font-semibold text-white mb-1">{title}</h3>
-          <p className="text-xs text-gray-4">{subtitle}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <motion.div
-            key={displayYear}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.15 }}
-            className="text-3xl font-bold text-white tabular-nums leading-none"
-          >
-            {displayYear}
-          </motion.div>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={handlePlay}
-              className="p-2 rounded-md bg-blue/10 text-blue hover:bg-blue/20 transition-colors"
-              aria-label={isPlaying ? "Pause" : "Play"}
+    <div className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col overflow-hidden">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
+        style={{ backgroundColor: "var(--trade-accent)" }}
+      />
+      <CardHeader
+        title={title}
+        subtitle={subtitle}
+        actions={
+          <div className="flex items-center gap-3">
+            <motion.div
+              key={displayYear}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+              className="text-3xl font-bold text-white tabular-nums leading-none"
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={handleReplay}
-              className="p-2 rounded-md bg-navy-line text-gray-3 hover:text-white hover:bg-navy-darker transition-colors"
-              aria-label="Replay"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+              {displayYear}
+            </motion.div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handlePlay}
+                className="p-2 rounded-md bg-blue/10 text-blue hover:bg-blue/20 transition-colors"
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={handleReplay}
+                className="p-2 rounded-md bg-navy-line text-gray-3 hover:text-white hover:bg-navy-darker transition-colors"
+                aria-label="Replay"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="mb-3 px-1">
         <input
@@ -333,7 +358,7 @@ export function BarRaceChart({
               <motion.div
                 key={item.name}
                 layout
-                initial={{ opacity: 0 }}
+                initial={false}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
                 className="flex items-center gap-3"

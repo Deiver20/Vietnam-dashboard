@@ -28,6 +28,8 @@ export interface TradeTimelineItem {
 }
 
 export interface TradeFilters {
+  countryCode?: string;
+  industry?: string;
   category?: string[];
   product?: string[];
   originCountry?: string[];
@@ -104,8 +106,8 @@ export const DASHBOARD_TABS = [
   { id: "imports-by-product", labelKey: "importsByProduct" as const, labelTop: "By Product", labelBottom: null },
   { id: "imports-timeline", labelKey: "importsTimeline" as const, labelTop: "Imports", labelBottom: "Timeline" },
   { id: "traders-and-customs", labelKey: "tradersAndCustoms" as const, labelTop: "Traders & Customs", labelBottom: null },
-  { id: "countries-detailed", labelKey: "countriesDetailed" as const, labelTop: "Countries", labelBottom: "Detailed" },
   { id: "imports-by-country", labelKey: "importsByCountry" as const, labelTop: "Imports by Country", labelBottom: null },
+  { id: "countries-detailed", labelKey: "countriesDetailed" as const, labelTop: "Countries", labelBottom: "Detailed" },
   { id: "imports-operations", labelKey: "importsOperations" as const, labelTop: "Imports", labelBottom: "Operations" },
   { id: "price-projection", labelKey: "priceProjection" as const, labelTop: "Price", labelBottom: "Projection" },
 ];

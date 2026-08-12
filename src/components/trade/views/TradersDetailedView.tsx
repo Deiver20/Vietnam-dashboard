@@ -75,8 +75,7 @@ export function TradersDetailedView() {
   return (
     <div className="space-y-4">
       <ChartCard
-        eyebrow="DATOS DETALLADOS"
-        title={<>Registros <em className="acc">{filters.flow === "imports" ? "de importación" : "de exportación"}</em> en detalle</>}
+        title={filters.flow === "imports" ? "Detalle de importaciones" : "Detalle de exportaciones"}
         subtitle={`Desglose crudo de operaciones para los filtros aplicados (${filters.yearStart}–${filters.yearEnd}).`}
       />
 

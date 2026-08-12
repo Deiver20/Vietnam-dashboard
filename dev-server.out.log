@@ -1,0 +1,13 @@
+npm warn Unknown project config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown project config "only-built-dependencies". This will stop working in the next major version of npm.
+npm warn Unknown project config "minimum-release-age". This will stop working in the next major version of npm.
+
+> dashboard-vietnam@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.17:3000
+- Environments: .env.local
+✓ Ready in 535ms
+

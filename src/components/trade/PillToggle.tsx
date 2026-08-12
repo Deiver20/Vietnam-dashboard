@@ -19,6 +19,7 @@ export function PillToggle<T extends string>({
 }) {
   const T = useTradeTheme();
   const activeBg = T.mode === "dark" ? T.accentNavy : "#03488D";
+  const activeInk = T.mode === "dark" ? "#06254B" : "#FFFFFF";
   return (
     <div
       role="group"
@@ -37,7 +38,7 @@ export function PillToggle<T extends string>({
             style={{
               fontFamily: fontQ,
               backgroundColor: active ? activeBg : "transparent",
-              color: active ? "#FFFFFF" : T.accentNavy,
+              color: active ? activeInk : T.accentNavy,
               borderRight: `1px solid ${T.borderStrong}`,
             }}
           >

@@ -74,9 +74,8 @@ export function TimelineView() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
-          eyebrow="LÍNEA DE TIEMPO"
-          title={<>{filters.flow === "imports" ? "Importaciones" : "Exportaciones"} por país <em className="acc">(anual, {unit.short})</em></>}
-          subtitle="Top 15 países. Las barras ordenan a los países por posición (mayor a menor) y las cintas muestran su subida o bajada a lo largo de los años."
+          title={filters.flow === "imports" ? "Importaciones por país" : "Exportaciones por país"}
+          subtitle="Barras anuales por posición (mayor a menor); las cintas muestran la subida o bajada entre años."
         >
           {!data ? (
             <div className="flex h-[420px] items-center justify-center text-gray-4">
@@ -125,9 +124,8 @@ export function TimelineView() {
         </ChartCard>
 
         <ChartCard
-          eyebrow="VOLUMEN ACUMULADO"
-          title={<>{filters.flow === "imports" ? "Importaciones" : "Exportaciones"} <em className="acc">acumuladas</em> ({unit.short}, mes a mes)</>}
-          subtitle="Cada año reinicia su acumulado en enero."
+          title={filters.flow === "imports" ? "Importaciones acumuladas" : "Exportaciones acumuladas"}
+          subtitle={`Cada año reinicia su acumulado en enero (${unit.short}, mes a mes).`}
         >
           {!data ? (
             <div className="flex h-[420px] items-center justify-center text-gray-4">

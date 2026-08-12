@@ -23,10 +23,17 @@ export const COLORS = {
 };
 
 export const COUNTRY_PALETTE = [
-  "#03488D", "#1D9E75", "#E07B2A", "#1a3a6b", "#06254B",
-  "#3B82F6", "#06B6D4", "#14B8A6", "#84CC16", "#A855F7",
-  "#EC4899", "#F97316", "#EF4444", "#8B5CF6", "#0EA5E9",
-  "#22C55E", "#EAB308", "#F59E0B",
+  "#0B6FD6", "#1D9E75", "#E07B2A", "#E04A3F", "#8A4FD8",
+  "#0E9BB8", "#C8A012", "#6F9E2B", "#D84A9E", "#A8662A",
+  "#3B82F6", "#14B8A6", "#F97316", "#EF4444", "#8B5CF6",
+  "#0EA5E9", "#22C55E", "#EAB308",
+];
+
+export const COUNTRY_PALETTE_DARK = [
+  "#5CA8F5", "#3DCF9B", "#FFA455", "#FF6B6B", "#C79BFF",
+  "#4AD6EE", "#FFD757", "#B4E25C", "#FF7AB8", "#D9A066",
+  "#77A8FF", "#3FE0C8", "#FFA366", "#FF8080", "#C89BFF",
+  "#5CC8FF", "#5CE68F", "#FFC04D",
 ];
 
 export const RIBBON_PALETTE = [
@@ -49,8 +56,9 @@ export const YEAR_PALETTE = [
   "#EC4899", "#3B82F6", "#14B8A6", "#EF4444", "#0EA5E9",
 ];
 
-export function getCountryColor(idx: number): string {
-  return COUNTRY_PALETTE[idx % COUNTRY_PALETTE.length];
+export function getCountryColor(idx: number, mode: "light" | "dark" = "light"): string {
+  const palette = mode === "dark" ? COUNTRY_PALETTE_DARK : COUNTRY_PALETTE;
+  return palette[idx % palette.length];
 }
 
 export function getYearColor(year: number, yearStart?: number): string {

@@ -23,6 +23,10 @@
   --color-blue-soft: #67a6ff;
   --color-blue-deep: #07074d;
 
+  /* Accent por flujo (imports/exports/pricing) — el shell lo sobreescribe; en
+     el dashboard standalone queda el azul original. */
+  --trade-accent: #0066ff;
+
   /* Green */
   --color-green: #33cc00;
   --color-green-2: #279b00;
@@ -39,6 +43,11 @@
   --color-gray-3: #bfbfbf;
   --color-gray-4: #94959b;
   --color-gray-5: #686970;
+
+  /* Trade theme hooks (light defaults; the dark immersive shell overrides
+     these on its wrapper so shared trade UI stays readable in both modes). */
+  --trade-accent: #03488D;
+  --trade-surface-hover: rgba(6, 37, 75, 0.05);
 
   /* Base */
 
@@ -343,10 +352,38 @@ body {
 
 /* ─── TRADE TABS (light mode) ─── */
 
-.dashboard-light em.acc {
+em.acc {
   font-style: italic;
-  color: #03488D;
+  color: var(--trade-accent, #03488D);
   font-weight: 500;
+}
+
+/* Immersive shell in LIGHT mode: remap the navy dashboard palette so the
+   shared filters panel and overview/race cards read as light surfaces
+   instead of the navy chrome. Scoped to the dashboard wrapper
+   (.trade-scope), so the standalone /dashboard keeps its navy look. */
+.trade-scope-light {
+  --color-navy-card: #ffffff;
+  --color-navy-deep: #f4f8fd;
+  --color-navy-darker: #f2f8ff;
+  --color-navy-mid: #e6eef7;
+  --color-navy-line: rgba(6, 37, 75, 0.15);
+  --color-blue: #03488D;
+  --color-blue-2: #03488D;
+  --color-blue-soft: #03488D;
+  --color-blue-deep: #06254B;
+  --color-gray-1: #f8fafc;
+  --color-gray-2: #e2e8f0;
+  --color-gray-3: #334155;
+  --color-gray-4: #5a6478;
+  --color-gray-5: #9ca3af;
+  --color-white: #06254B;
+}
+
+/* Labels drawn on colored fills (bar-race names, checkbox checks) must stay
+   white even when the scope flips --color-white to dark ink. */
+.trade-scope-light .trade-keep-white {
+  color: #ffffff !important;
 }
 
 .dashboard-light .font-mono-numbers {

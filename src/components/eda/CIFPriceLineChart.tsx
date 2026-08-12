@@ -4,6 +4,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
+import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -16,6 +17,8 @@ interface CIFPriceLineChartProps {
 export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChartProps) {
   const { locale } = useDashboard();
   const t = getTranslation(locale);
+  const { ref: cardRef, light } = useScopeLight();
+  const pal = chartPalette(light);
 
   if (loading && data.length === 0) {
     return (
@@ -61,17 +64,17 @@ export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChar
   ];
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-white">{t.eda.cifPriceLine}</h3>
       </div>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={merged} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#1a2b40" strokeDasharray="3 3" />
+            <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
-              stroke="#94959b"
+              stroke={pal.axis}
               fontSize={10}
               tickFormatter={(v: string) => {
                 if (frequency === "M") return v.slice(0, 7);
@@ -80,21 +83,21 @@ export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChar
               minTickGap={32}
             />
             <YAxis
-              stroke="#94959b"
+              stroke={pal.axis}
               fontSize={10}
               tickFormatter={(v: number) => formatCIFPrice(v)}
             />
             <Tooltip
               contentStyle={{
-                background: "#061224",
-                border: "1px solid #1a2b40",
+                background: pal.tooltipBg,
+                border: `1px solid ${pal.tooltipBorder}`,
                 borderRadius: 6,
                 fontSize: 12,
               }}
-              labelStyle={{ color: "#c5c6cc" }}
+              labelStyle={{ color: pal.tooltipLabel }}
               formatter={(v) => formatCIFPrice(v as number)}
             />
-            <Legend wrapperStyle={{ fontSize: 10, color: "#c5c6cc" }} />
+            <Legend wrapperStyle={{ fontSize: 10, color: pal.legend }} />
             {productNames.map((product, i) => (
               <Line
                 key={product}

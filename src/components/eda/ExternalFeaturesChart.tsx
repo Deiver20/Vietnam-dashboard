@@ -4,6 +4,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { EDAMetric, ExternalFeature } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice, formatCorrelation, formatUSD } from "@/app/lib/functions/formatters";
+import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -16,6 +17,8 @@ interface ExternalFeaturesChartProps {
 export function ExternalFeaturesChart({ metrics, external, loading }: ExternalFeaturesChartProps) {
   const { locale } = useDashboard();
   const t = getTranslation(locale);
+  const { ref: cardRef, light } = useScopeLight();
+  const pal = chartPalette(light);
 
   if (loading && external.length === 0) {
     return (
@@ -42,19 +45,19 @@ export function ExternalFeaturesChart({ metrics, external, loading }: ExternalFe
   }));
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
       <p className="text-[10px] text-gray-5 mb-3">{t.eda.externalFeaturesExplainer}</p>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#1a2b40" strokeDasharray="3 3" />
-            <XAxis dataKey="date" stroke="#94959b" fontSize={10} minTickGap={32}               tickFormatter={(v) => v.slice(0, 7)} />
-            <YAxis yAxisId="left" stroke="#94959b" fontSize={10} tickFormatter={(v: number) => formatUSD(v, 0)} />
-            <YAxis yAxisId="right" orientation="right" stroke="#94959b" fontSize={10} tickFormatter={(v: number) => v.toFixed(2)} />
+            <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
+            <XAxis dataKey="date" stroke={pal.axis} fontSize={10} minTickGap={32}               tickFormatter={(v) => v.slice(0, 7)} />
+            <YAxis yAxisId="left" stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => formatUSD(v, 0)} />
+            <YAxis yAxisId="right" orientation="right" stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => v.toFixed(2)} />
             <Tooltip
-              contentStyle={{ background: "#061224", border: "1px solid #1a2b40", borderRadius: 6, fontSize: 12 }}
-              labelStyle={{ color: "#c5c6cc" }}
+              contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
+              labelStyle={{ color: pal.tooltipLabel }}
               formatter={(v, name) => {
                 const num = v as number;
                 const label = String(name ?? "");
@@ -65,7 +68,7 @@ export function ExternalFeaturesChart({ metrics, external, loading }: ExternalFe
                 return [num, label];
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 10, color: "#c5c6cc" }} />
+            <Legend wrapperStyle={{ fontSize: 10, color: pal.legend }} />
             <Bar yAxisId="right" dataKey="corn" name={t.eda.externalCorn} fill="#F5C518" fillOpacity={0.6} />
             <Bar yAxisId="right" dataKey="soy" name={t.eda.externalSoy} fill="#00C2A8" fillOpacity={0.6} />
             <Line yAxisId="left" type="monotone" dataKey="fx" name={t.eda.externalFx} stroke="#0066FF" strokeWidth={1.5} dot={false} connectNulls />

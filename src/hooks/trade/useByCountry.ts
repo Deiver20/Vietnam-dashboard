@@ -25,8 +25,9 @@ export function useByCountry(): {
   const effective = useMemo<TradeFilters>(() => ({
     flow: f.flow, category: f.category, product: f.product, originCountry: f.originCountry,
     customs: f.customs, importer: f.importer, exporter: f.exporter,
+    countryCode: f.countryCode, industry: f.industry,
     yearStart: f.yearStart, yearEnd: f.yearEnd, fraccion: f.fraccion, meses: f.meses,
-  }), [f.flow, f.category, f.product, f.originCountry, f.customs, f.importer, f.exporter, f.yearStart, f.yearEnd, f.fraccion, f.meses]);
+  }), [f.flow, f.category, f.product, f.originCountry, f.customs, f.importer, f.exporter, f.countryCode, f.industry, f.yearStart, f.yearEnd, f.fraccion, f.meses]);
 
   const fetcher = useCallback(async (ff: TradeFilters) => {
     const q = buildTradeQueryString(ff);

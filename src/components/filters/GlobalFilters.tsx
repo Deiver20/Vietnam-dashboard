@@ -6,13 +6,15 @@ import { TradeFilterOptions } from "@/app/interfaces/trade/interface";
 import { DASHBOARD_YEAR_RANGE } from "@/app/constants";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { YearRangeFilter } from "@/components/filters/YearRangeFilter";
+import { MonthFilter } from "@/components/filters/MonthFilter";
 import { Filter, RotateCcw } from "lucide-react";
 
 interface GlobalFiltersProps {
   options: TradeFilterOptions;
+  showMonthFilter?: boolean;
 }
 
-export function GlobalFilters({ options }: GlobalFiltersProps) {
+export function GlobalFilters({ options, showMonthFilter = true }: GlobalFiltersProps) {
   const { locale, filters, setFilters, resetFilters } = useDashboard();
   const t = getTranslation(locale);
 
@@ -104,6 +106,17 @@ export function GlobalFilters({ options }: GlobalFiltersProps) {
             setFilters({ ...filters, exporter: value as string })
           }
         />
+
+        {showMonthFilter && (
+          <MonthFilter
+            value={filters.meses}
+            onChange={(months) => setFilters({ ...filters, meses: months })}
+            locale={locale}
+            label={t.filters.month}
+            placeholder={t.filters.allMonths}
+            searchPlaceholder={t.filters.search}
+          />
+        )}
 
         <YearRangeFilter
           startYear={filters.yearStart}

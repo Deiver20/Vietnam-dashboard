@@ -31,7 +31,10 @@ export function useYearComparator(): {
     let cancelled = false;
     async function load() {
       try {
-        const query = buildTradeQueryString({} as TradeFilters);
+        const query = buildTradeQueryString({
+          countryCode: filters.countryCode,
+          industry: filters.industry,
+        } as TradeFilters);
         const res = await fetchJson<TradeApiResponse<{ minYear: number; maxYear: number }>>(
           `/trade/years-range${query}`
         );
@@ -47,18 +50,32 @@ export function useYearComparator(): {
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [filters.countryCode, filters.industry]);
 
   const stored = filters.years ?? [];
-  // yearA (Año A) = año actual/último; yearB (Año B) = año anterior.
-  const yearA = stored[1] ?? yearsList[yearsList.length - 1] ?? 2026;
-  const yearB = stored[0] ?? yearsList[Math.max(0, yearsList.length - 2)] ?? 2025;
+  // Cada casilla guarda el año que eligió el usuario, sin reordenar:
+  // yearA (Año A, primero) y yearB (Año B, segundo) son independientes.
+  let yearA = stored[0] ?? yearsList[Math.max(0, yearsList.length - 2)] ?? 2025;
+  const yearB = stored[1] ?? yearsList[yearsList.length - 1] ?? 2026;
+  // Recuperación por si quedó persistido un estado 2026 vs 2026.
+  if (yearA === yearB) {
+    const idx = yearsList.indexOf(yearA);
+    yearA = yearsList[Math.max(0, idx - 1)] ?? yearB - 1;
+  }
 
   const setYearA = (y: number) => {
-    setFilters((prev) => ({ ...prev, years: [prev.years?.[0] ?? y, y].sort((a, b) => a - b) as [number, number] | number[] }));
+    setFilters((prev) => {
+      const b = prev.years?.[1] ?? yearB;
+      if (y === b) return prev;
+      return { ...prev, years: [y, b] };
+    });
   };
   const setYearB = (y: number) => {
-    setFilters((prev) => ({ ...prev, years: [y, prev.years?.[1] ?? y].sort((a, b) => a - b) as [number, number] | number[] }));
+    setFilters((prev) => {
+      const a = prev.years?.[0] ?? yearA;
+      if (y === a) return prev;
+      return { ...prev, years: [a, y] };
+    });
   };
 
   return { yearA, yearB, yearsList, setYearA, setYearB };

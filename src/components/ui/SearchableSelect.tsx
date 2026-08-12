@@ -36,6 +36,7 @@ export function SearchableSelect({
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(VISIBLE_COUNT);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [scopeClass, setScopeClass] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +98,14 @@ export function SearchableSelect({
       if (!open) {
         setSearch("");
         setVisibleCount(VISIBLE_COUNT);
+        const scope = containerRef.current?.closest(".trade-scope");
+        setScopeClass(
+          scope && scope.classList.contains("trade-scope-light")
+            ? "trade-scope-light"
+            : scope
+              ? "trade-scope-dark"
+              : ""
+        );
         if (triggerRef.current) {
           const rect = triggerRef.current.getBoundingClientRect();
           setDropdownPosition({
@@ -223,7 +232,8 @@ export function SearchableSelect({
           id={listboxId}
           role="listbox"
           aria-multiselectable={multiple}
-          className="fixed z-[9999] bg-navy-card border border-navy-line rounded-md shadow-xl overflow-hidden"
+          data-native-wheel
+          className={`fixed z-[9999] bg-navy-card border border-navy-line rounded-md shadow-xl overflow-hidden trade-scope ${scopeClass}`}
           style={{
             top: dropdownPosition.top,
             left: dropdownPosition.left,
@@ -283,7 +293,7 @@ export function SearchableSelect({
                           ${isSelected(option) ? "bg-blue border-blue" : "border-gray-5"}
                         `}
                       >
-                        {isSelected(option) && <Check className="w-3 h-3 text-white" />}
+                        {isSelected(option) && <Check className="w-3 h-3 text-white trade-keep-white" />}
                       </span>
                     ) : (
                       <span

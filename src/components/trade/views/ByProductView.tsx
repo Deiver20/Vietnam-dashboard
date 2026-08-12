@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { ChartCard } from "@/components/trade/ChartCard";
 import { BarChart, makeFormatters } from "@/components/trade/charts";
@@ -11,11 +11,8 @@ import { YEAR_PALETTE, UNIT_VOLUMEN, getUnitLabel } from "@/app/lib/trade/consta
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
 import { TradeFilters, ByProductResponse, ByProductComparative, ByProductRow } from "@/app/interfaces/trade/interface";
 
-type Moneda = "USD";
-
 export function ByProductView() {
   const { yearA, yearB, yearsList, setYearA, setYearB } = useYearComparator();
-  const [moneda] = useState<Moneda>("USD");
   const T = useTradeTheme();
   const dark = T.mode === "dark";
 
@@ -64,15 +61,17 @@ export function ByProductView() {
     const list: ByProductRow[] = Array.isArray(datos) && datos.length > 0 && "years" in datos[0]
       ? flattenComparatives(datos as ByProductComparative[])
       : (datos as ByProductRow[]);
-    return topByVolume.map(p => {
-      const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
-      const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
-      return {
-        producto: p.producto,
-        [String(yearA)]: rowA?.volumenKg ?? 0,
-        [String(yearB)]: rowB?.volumenKg ?? 0,
-      };
-    });
+    return topByVolume
+      .map(p => {
+        const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
+        const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
+        return {
+          producto: p.producto,
+          [String(yearA)]: rowA?.volumenKg ?? 0,
+          [String(yearB)]: rowB?.volumenKg ?? 0,
+        };
+      })
+      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
   }, [datos, topByVolume, yearA, yearB]);
 
   const priceData = useMemo(() => {
@@ -80,15 +79,17 @@ export function ByProductView() {
     const list: ByProductRow[] = Array.isArray(datos) && datos.length > 0 && "years" in datos[0]
       ? flattenComparatives(datos as ByProductComparative[])
       : (datos as ByProductRow[]);
-    return topByPrice.map(p => {
-      const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
-      const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
-      return {
-        producto: p.producto,
-        [String(yearA)]: rowA?.precioUsd ?? 0,
-        [String(yearB)]: rowB?.precioUsd ?? 0,
-      };
-    });
+    return topByPrice
+      .map(p => {
+        const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
+        const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
+        return {
+          producto: p.producto,
+          [String(yearA)]: rowA?.precioUsd ?? 0,
+          [String(yearB)]: rowB?.precioUsd ?? 0,
+        };
+      })
+      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
   }, [datos, topByPrice, yearA, yearB]);
 
   const volumeSeries = useMemo(() => [
@@ -146,7 +147,7 @@ export function ByProductView() {
               onChange={e => setYearA(Number(e.target.value))}
               style={selectStyle}
             >
-              {yearsList.map(y => (
+              {yearsList.filter(y => y !== yearB).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -162,7 +163,7 @@ export function ByProductView() {
               onChange={e => setYearB(Number(e.target.value))}
               style={selectStyle}
             >
-              {yearsList.map(y => (
+              {yearsList.filter(y => y !== yearA).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -172,12 +173,8 @@ export function ByProductView() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
-          eyebrow="TOP 15 PRODUCTOS"
-          title={
-            <>
-              Por <em className="acc">volumen</em> ({unit.short}) — {yearA} vs {yearB}
-            </>
-          }
+          title="Volumen por producto"
+          subtitle={`Top 15 por volumen (${unit.short}). Comparando ${yearA} vs ${yearB}.`}
         >
           {!datos ? (
             <div className="flex h-[480px] items-center justify-center text-gray-4">
@@ -197,12 +194,8 @@ export function ByProductView() {
         </ChartCard>
 
         <ChartCard
-          eyebrow="TOP 15 PRODUCTOS"
-          title={
-            <>
-              Por <em className="acc">precio unitario</em> ({moneda}/{UNIT_VOLUMEN.per}) — {yearA} vs {yearB}
-            </>
-          }
+          title="Precio unitario"
+          subtitle={`Top 15 por precio (USD/${UNIT_VOLUMEN.per}). Comparando ${yearA} vs ${yearB}.`}
         >
           {!datos ? (
             <div className="flex h-[480px] items-center justify-center text-gray-4">

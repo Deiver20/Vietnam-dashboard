@@ -1,28 +1,53 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ChartCard } from "@/components/trade/ChartCard";
 import { CountryPivotTable } from "@/components/trade/CountryPivotTable";
+import { CountryChoroplethMap } from "@/components/trade/CountryChoroplethMap";
+import { PillToggle } from "@/components/trade/PillToggle";
 import { useCountryMonthly } from "@/hooks/trade/useCountryMonthly";
+import { useByCountry } from "@/hooks/trade/useByCountry";
 import { useYearComparator } from "@/hooks/trade/useYearComparator";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
-import { TradeFilters, CountryMonthlyBreakdown } from "@/app/interfaces/trade/interface";
+import { TradeFilters, CountryMonthlyBreakdown, ByCountryResponse } from "@/app/interfaces/trade/interface";
+
+type Vista = "pivot" | "mapa";
 
 export function CountriesDetailedView() {
   const { yearA, setYearA, yearB, setYearB, yearsList } = useYearComparator();
+  const [vista, setVista] = useState<Vista>("pivot");
+  const [mapYear, setMapYear] = useState<number | null>(null);
   const T = useTradeTheme();
 
   const unit = useMemo(() => getUnitLabel(), []);
+
+  const defaultYear = yearsList.length > 0 ? yearsList[yearsList.length - 1] : null;
+  const effectiveMapYear = mapYear ?? defaultYear;
 
   const sortedYears: [number, number] = useMemo(() => {
     return ([yearA, yearB].sort((a, b) => a - b) as [number, number]);
   }, [yearA, yearB]);
 
-  const { filters, fetcher } = useCountryMonthly(sortedYears);
-  const { datos: pivot, error, cargando } = useDebouncedFilters<TradeFilters, CountryMonthlyBreakdown>(filters, fetcher);
+  const { filters: pivotFilters, fetcher: pivotFetcher } = useCountryMonthly(sortedYears);
+  const { datos: pivot, error, cargando } = useDebouncedFilters<TradeFilters, CountryMonthlyBreakdown>(pivotFilters, pivotFetcher);
+
+  const { filters: countryFilters, fetcher: countryFetcher } = useByCountry();
+  const mapFilters = useMemo<TradeFilters>(() => ({
+    ...countryFilters,
+    yearStart: effectiveMapYear ?? undefined,
+    yearEnd: effectiveMapYear ?? undefined,
+  }), [countryFilters, effectiveMapYear]);
+  const { datos: countryData } = useDebouncedFilters<TradeFilters, ByCountryResponse>(mapFilters, countryFetcher);
+
+  const mapRows = useMemo(() => {
+    if (!countryData) return [] as Array<{ country: string; volumenMt: number }>;
+    return countryData.ranking
+      .filter(r => r.volumenKg > 0)
+      .map(r => ({ country: r.country, volumenMt: r.volumenKg }));
+  }, [countryData]);
 
   const selectStyle: React.CSSProperties = {
     fontFamily: "var(--font-poppins), Poppins, sans-serif",
@@ -42,19 +67,21 @@ export function CountriesDetailedView() {
     backgroundPosition: "right 10px center",
   };
 
+  const isMapa = vista === "mapa";
+
   return (
     <div className="space-y-4">
       <div
         className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
         role="group"
-        aria-label="Comparador de años"
+        aria-label="Selector de año"
       >
         <span
           className="text-[11px] font-semibold uppercase tracking-[0.2em]"
           style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
         >
-          Comparar
+          {isMapa ? "Año" : "Comparar"}
         </span>
         {yearsList.length === 0 ? (
           <div
@@ -63,6 +90,17 @@ export function CountriesDetailedView() {
           >
             <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> Cargando años…
           </div>
+        ) : isMapa ? (
+          <select
+            aria-label="Año"
+            value={effectiveMapYear ?? undefined}
+            onChange={e => setMapYear(Number(e.target.value))}
+            style={selectStyle}
+          >
+            {yearsList.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         ) : (
           <>
             <select
@@ -71,7 +109,7 @@ export function CountriesDetailedView() {
               onChange={e => setYearA(Number(e.target.value))}
               style={selectStyle}
             >
-              {yearsList.map(y => (
+              {yearsList.filter(y => y !== yearB).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -87,20 +125,34 @@ export function CountriesDetailedView() {
               onChange={e => setYearB(Number(e.target.value))}
               style={selectStyle}
             >
-              {yearsList.map(y => (
+              {yearsList.filter(y => y !== yearA).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </>
         )}
+        <span className="ml-auto" style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif" }}>
+          <PillToggle<Vista>
+            options={[
+              { id: "pivot", label: "Pivot" },
+              { id: "mapa", label: "Mapa" },
+            ]}
+            value={vista}
+            onChange={setVista}
+            ariaLabel="Cambiar vista"
+          />
+        </span>
       </div>
 
       <ChartCard
-        eyebrow="PAÍSES · DETALLADO"
-        title={<>Pivot <em className="acc">país × mes</em></>}
-        subtitle={`Volumen (${unit.short}), valor y precio por país y mes, ordenado por volumen total.`}
+        title={isMapa ? "Volumen por país" : "Pivot país × mes"}
+        subtitle={
+          isMapa
+            ? `Volumen (${unit.short}) por país de origen para ${effectiveMapYear ?? "—"}.`
+            : `Volumen (${unit.short}), valor y precio por país y mes, ordenado por volumen total.`
+        }
       >
-        {error && (
+        {error && !isMapa && (
           <div
             className="rounded-md border p-4 text-sm"
             style={{ borderColor: "rgba(239, 68, 68, 0.30)", backgroundColor: T.mode === "dark" ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)", color: T.mode === "dark" ? "#f87171" : "#b91c1c" }}
@@ -109,7 +161,7 @@ export function CountriesDetailedView() {
           </div>
         )}
 
-        {!error && (!pivot || cargando) && (
+        {!isMapa && !error && (!pivot || cargando) && (
           <div
             className="flex items-center gap-2 rounded-lg border p-6 text-sm"
             style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
@@ -118,17 +170,30 @@ export function CountriesDetailedView() {
           </div>
         )}
 
-        {!error && pivot && pivot.monthKeys.length > 0 && pivot.rows.length > 0 && (
+        {!isMapa && !error && pivot && pivot.monthKeys.length > 0 && pivot.rows.length > 0 && (
           <CountryPivotTable data={pivot} unit={unit} />
         )}
 
-        {!error && pivot && (pivot.monthKeys.length === 0 || pivot.rows.length === 0) && !cargando && (
+        {!isMapa && !error && pivot && (pivot.monthKeys.length === 0 || pivot.rows.length === 0) && !cargando && (
           <div
             className="flex h-[240px] items-center justify-center rounded-lg border text-sm"
             style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
           >
             Sin datos para los filtros seleccionados.
           </div>
+        )}
+
+        {isMapa && (
+          mapRows.length > 0 ? (
+            <CountryChoroplethMap data={mapRows} unit={unit.short} />
+          ) : (
+            <div
+              className="flex h-[480px] items-center justify-center rounded-lg border text-sm"
+              style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
+            >
+              <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: T.accentNavy }} /> Cargando volumen por país…
+            </div>
+          )
         )}
       </ChartCard>
     </div>

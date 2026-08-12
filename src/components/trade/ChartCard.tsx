@@ -2,8 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useTradeTheme } from "./TradeThemeContext";
-
-const fontQ = "var(--font-poppins), Poppins, sans-serif";
+import { CardHeader } from "./CardHeader";
 
 export function ChartCard({
   eyebrow,
@@ -35,36 +34,7 @@ export function ChartCard({
         style={{ backgroundColor: T.accent }}
       />
       {eyebrow || title ? (
-        <div className="mb-2 flex shrink-0 items-start justify-between gap-3">
-          <div className="min-w-0">
-            {eyebrow ? (
-              <span
-                className="mb-1.5 inline-flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.3em]"
-                style={{ fontFamily: fontQ, color: T.accentNavy }}
-              >
-                <span className="inline-block h-px w-8 shrink-0" style={{ backgroundColor: T.accent }} />
-                {eyebrow}
-              </span>
-            ) : null}
-            {title ? (
-              <h3
-                className="text-base leading-tight sm:text-lg"
-                style={{ fontFamily: fontQ, fontWeight: 600, letterSpacing: "-0.01em", color: T.textPrimary }}
-              >
-                {title}
-              </h3>
-            ) : null}
-            {subtitle ? (
-              <p
-                className="mt-1 hidden text-xs sm:block"
-                style={{ fontFamily: fontQ, color: T.textMuted }}
-              >
-                {subtitle}
-              </p>
-            ) : null}
-          </div>
-          {acciones ? <div className="shrink-0">{acciones}</div> : null}
-        </div>
+        <CardHeader theme={T} title={title} subtitle={subtitle} actions={acciones} />
       ) : null}
       {children ? <div className="relative min-h-[200px] flex-1">{children}</div> : null}
     </div>

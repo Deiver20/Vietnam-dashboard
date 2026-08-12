@@ -14,6 +14,7 @@ import { Locale } from "@/app/interfaces";
 import { IndustriesAiPanel } from "../aiPanel/IndustriesAiPanel";
 import { hexToRgb } from "@/app/(dashboard)/dashboard/chartHelpers";
 import PageIcon from "@/components/dashboard/PageIcon";
+import { Flag } from "@/components/ui/Flag";
 import { IndustriesTabContent } from "./IndustriesTabContent";
 
 const Wrapper = styled.div`
@@ -187,12 +188,13 @@ function ThemeToggle({
   );
 }
 
-/* Language selector — a real control wired to useDashboard.setLocale(). */
-const LOCALES: { value: Locale; label: string; flag: string }[] = [
-  { value: "en", label: "EN", flag: "🇺🇸" },
-  { value: "es", label: "ES", flag: "🇪🇸" },
-  { value: "fr", label: "FR", flag: "🇫🇷" },
-  { value: "pt", label: "PT", flag: "🇵🇹" },
+/* Language selector — a real control wired to useDashboard.setLocale(). The
+   flag renders as an SVG image (react-country-flag) like the REAM dashboard. */
+const LOCALES: { value: Locale; label: string; country: string }[] = [
+  { value: "en", label: "English", country: "United States" },
+  { value: "es", label: "Español", country: "Spain" },
+  { value: "fr", label: "Français", country: "France" },
+  { value: "pt", label: "Português", country: "Brazil" },
 ];
 
 function LanguageSelector({ dark }: { dark: boolean }) {
@@ -214,9 +216,7 @@ function LanguageSelector({ dark }: { dark: boolean }) {
             : "bg-white/85 border-black/[0.10] text-gray-800 shadow-sm hover:bg-white"
         }`}
       >
-        <span className="text-[15px] leading-none" aria-hidden="true">
-          {current.flag}
-        </span>
+        <Flag country={current.country} className="w-5 h-3.5 rounded" />
         <span>{current.label}</span>
         <svg
           width="10"
@@ -232,7 +232,7 @@ function LanguageSelector({ dark }: { dark: boolean }) {
         <div
           role="listbox"
           aria-label="Language"
-          className={`absolute right-0 top-full mt-1.5 min-w-[120px] rounded-lg border backdrop-blur-md overflow-hidden z-50 ${
+          className={`absolute right-0 top-full mt-1.5 min-w-[140px] rounded-lg border backdrop-blur-md overflow-hidden z-50 ${
             dark
               ? "bg-[#030f1c] border-white/[0.12] shadow-[0_8px_28px_rgba(0,0,0,0.5)]"
               : "bg-white border-black/[0.08] shadow-[0_8px_28px_rgba(0,0,0,0.15)]"
@@ -249,15 +249,13 @@ function LanguageSelector({ dark }: { dark: boolean }) {
               }}
               className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-left transition-colors cursor-pointer ${
                 locale === l.value
-                  ? dark
-                    ? "bg-[#227BFF] text-white"
-                    : "bg-[#227BFF] text-white"
+                  ? "bg-[#227BFF] text-white"
                   : dark
                     ? "text-gray-3 hover:bg-white/[0.06] hover:text-white"
                     : "text-gray-600 hover:bg-black/[0.04] hover:text-gray-900"
               }`}
             >
-              <span aria-hidden="true">{l.flag}</span>
+              <Flag country={l.country} className="w-5 h-3.5 rounded" />
               {l.label}
             </button>
           ))}
@@ -742,11 +740,20 @@ export default function DashboardPages() {
         )}
 
         {!isCover && (
-          <div className="flex items-baseline justify-between gap-6 mb-4">
-            <h3 className="m-0 text-[24px] font-semibold tracking-[0.04em] text-white drop-shadow-[0_0_18px_rgba(48,97,219,0.7)]">
-              {t.nav[tab.labelKey]}
-            </h3>
-            <span className="text-[12px] tracking-[0.04em] text-[#c3cbe0] drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
+          <div className="mb-5 flex items-end justify-between gap-6 border-b border-white/[0.12] pb-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className="shrink-0 text-[10px] font-semibold tabular-nums tracking-[0.18em] text-[#7d9ac7]"
+                aria-hidden="true"
+              >
+                {String(displayIndex).padStart(2, "0")}
+              </span>
+              <span className="h-4 w-px shrink-0 bg-white/[0.2]" aria-hidden="true" />
+              <h3 className="m-0 truncate text-[19px] font-medium tracking-[-0.015em] text-white">
+                {t.nav[tab.labelKey]}
+              </h3>
+            </div>
+            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.16em] text-[#7d8492]">
               {t.nav.dashboardPages}
             </span>
           </div>

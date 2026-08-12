@@ -5,6 +5,8 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { TotalImportsMonthlyPoint } from "@/hooks/trade/useTotalImportsMonthly";
 import { formatCIFPrice, formatVolume } from "@/app/lib/functions/formatters";
+import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
+import { CardHeader } from "@/components/trade/CardHeader";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -23,24 +25,37 @@ const COLORS = [
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/* The shell wraps the dashboard in a .trade-scope that flips between
+   .trade-scope-dark and .trade-scope-light. Chart inks (grid, axes, legend,
+   tooltip) can't take the scope's CSS variables, so read the live mode from
+   the nearest scope and pick the matching palette. Outside the shell (the
+   standalone navy /dashboard) there's no scope → defaults to dark, the
+   original look. */
+
 export function TotalImportsChart({ data, loading, error }: TotalImportsChartProps) {
-  const { locale, filters } = useDashboard();
+  const { locale } = useDashboard();
   const t = getTranslation(locale);
   const [metric, setMetric] = useState<MetricType>("price");
+  const { ref: cardRef, light } = useScopeLight();
+
+  const pal = chartPalette(light);
+  const gridColor = light ? "rgba(6, 37, 75, 0.08)" : "#1a2b40";
+  const axisColor = pal.axis;
+  const tooltipContentStyle = {
+    background: pal.tooltipBg,
+    border: `1px solid ${pal.tooltipBorder}`,
+    borderRadius: 6,
+    fontSize: 12,
+  };
+  const tooltipLabelColor = pal.tooltipLabel;
+  const legendColor = pal.legend;
 
   const { chartData, years } = useMemo(() => {
     if (!data || data.length === 0) return { chartData: [], years: [] };
 
     const uniqueYears = [...new Set(data.map((d) => d.year))].sort((a, b) => a - b);
 
-    const isDefaultRange =
-      filters.yearStart === 2022 && filters.yearEnd === new Date().getFullYear();
-    const displayYears =
-      isDefaultRange && uniqueYears.length > 3
-        ? uniqueYears.slice(-3)
-        : uniqueYears;
-
-    const filtered = data.filter((d) => displayYears.includes(d.year));
+    const filtered = data.filter((d) => uniqueYears.includes(d.year));
 
     const monthMap = new Map<string, Record<string, number | string>>();
     for (let m = 1; m <= 12; m++) {
@@ -56,9 +71,9 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
 
     return {
       chartData: Array.from(monthMap.values()),
-      years: displayYears,
+      years: uniqueYears,
     };
-  }, [data, metric, filters.yearStart, filters.yearEnd]);
+  }, [data, metric]);
 
   if (loading) {
     return (
@@ -90,61 +105,63 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
   const yFormatter = metric === "price" ? formatCIFPrice : formatVolume;
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-white">{t.dashboard.totalImportsChart}</h3>
-        <div className="flex bg-navy-darker rounded-sm border border-navy-line overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setMetric("price")}
-            className={`px-3 py-1.5 text-xs font-medium transition-all ${
-              metric === "price"
-                ? "bg-blue/20 text-white border-blue"
-                : "text-gray-3 hover:text-white"
-            }`}
-          >
-            {t.dashboard.priceCif}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMetric("volume")}
-            className={`px-3 py-1.5 text-xs font-medium transition-all ${
-              metric === "volume"
-                ? "bg-blue/20 text-white border-blue"
-                : "text-gray-3 hover:text-white"
-            }`}
-          >
-            {t.dashboard.volume}
-          </button>
-        </div>
-      </div>
+    <div ref={cardRef} className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex flex-col overflow-hidden">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
+        style={{ backgroundColor: "var(--trade-accent)" }}
+      />
+      <CardHeader
+        title={t.dashboard.totalImportsChart}
+        actions={
+          <div className="flex bg-navy-darker rounded-sm border border-navy-line overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setMetric("price")}
+              className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                metric === "price"
+                  ? "bg-blue/20 text-white border-blue"
+                  : "text-gray-3 hover:text-white"
+              }`}
+            >
+              {t.dashboard.priceCif}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMetric("volume")}
+              className={`px-3 py-1.5 text-xs font-medium transition-all ${
+                metric === "volume"
+                  ? "bg-blue/20 text-white border-blue"
+                  : "text-gray-3 hover:text-white"
+              }`}
+            >
+              {t.dashboard.volume}
+            </button>
+          </div>
+        }
+      />
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="#1a2b40" strokeDasharray="3 3" />
+            <CartesianGrid stroke={gridColor} strokeDasharray="3 3" />
             <XAxis
               dataKey="month"
-              stroke="#94959b"
+              stroke={axisColor}
               fontSize={10}
               tickMargin={8}
             />
             <YAxis
-              stroke="#94959b"
+              stroke={axisColor}
               fontSize={10}
               tickFormatter={(v: number) => yFormatter(v)}
               width={80}
             />
             <Tooltip
-              contentStyle={{
-                background: "#061224",
-                border: "1px solid #1a2b40",
-                borderRadius: 6,
-                fontSize: 12,
-              }}
-              labelStyle={{ color: "#c5c6cc" }}
+              contentStyle={tooltipContentStyle}
+              labelStyle={{ color: tooltipLabelColor }}
               formatter={(v) => yFormatter(Number(v))}
             />
-            <Legend wrapperStyle={{ fontSize: 10, color: "#c5c6cc" }} />
+            <Legend wrapperStyle={{ fontSize: 10, color: legendColor }} />
             {years.map((year, i) => (
               <Line
                 key={year}

@@ -316,7 +316,7 @@ export function CountryPivotTable({ data, unit = { short: "mt", per: "mt" } }: {
                           style={{
                             display: "inline-block",
                             marginRight: 6,
-                            color: "#F8D227",
+                            color: T.accent,
                             transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
                             transition: "transform 0.15s",
                             verticalAlign: "middle",

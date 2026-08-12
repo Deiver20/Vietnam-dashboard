@@ -1,24 +1,41 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { Globe, Rocket } from "lucide-react";
+import { Globe, Rocket, ChevronDown, Check } from "lucide-react";
+import { Flag } from "@/components/ui/Flag";
+import { cn } from "@/lib/utils";
 import { Locale } from "@/app/interfaces";
+
+const languages: { value: Locale; label: string; country: string }[] = [
+  { value: "en", label: "English", country: "United States" },
+  { value: "es", label: "Español", country: "Spain" },
+  { value: "fr", label: "Français", country: "France" },
+  { value: "pt", label: "Português", country: "Brazil" },
+];
 
 export function Navbar() {
   const { locale, setLocale } = useDashboard();
   const t = getTranslation(locale);
   const pathname = usePathname();
   const isOldDashboard = pathname?.startsWith("/dashboard/");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const languages: { value: Locale; label: string }[] = [
-    { value: "en", label: "EN" },
-    { value: "es", label: "ES" },
-    { value: "fr", label: "FR" },
-    { value: "pt", label: "PT" },
-  ];
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const current = languages.find((l) => l.value === locale) ?? languages[0];
 
   return (
     <header className="hidden lg:flex h-16 border-b border-navy-line bg-navy-deep/95 backdrop-blur items-center justify-between px-4 sm:px-6 sticky top-0 z-40">
@@ -44,20 +61,47 @@ export function Navbar() {
             <span className="hidden sm:inline">Nuevo Dashboard</span>
           </Link>
         )}
-        <div className="flex items-center bg-navy-card/80 rounded-sm border border-navy-line p-1">
-          {languages.map((lang) => (
-            <button
-              key={lang.value}
-              onClick={() => setLocale(lang.value)}
-              className={`px-2 py-1 text-[11px] font-semibold rounded transition-all ${
-                locale === lang.value
-                  ? "bg-blue text-white shadow-sm"
-                  : "text-gray-3 hover:text-white hover:bg-navy-line"
-              }`}
+        <div ref={ref} className="relative">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-2 rounded-sm bg-navy-card/80 border border-navy-line px-2.5 py-1.5 text-[11px] font-semibold text-gray-3 hover:text-white transition-colors"
+            aria-haspopup="listbox"
+            aria-expanded={open}
+          >
+            <Flag country={current.country} className="w-5 h-3.5 rounded" />
+            <span>{current.label}</span>
+            <ChevronDown
+              className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")}
+            />
+          </button>
+          {open && (
+            <div
+              role="listbox"
+              className="absolute right-0 top-full mt-2 w-44 rounded-md border border-navy-line bg-navy-card shadow-xl overflow-hidden z-50"
             >
-              {lang.label}
-            </button>
-          ))}
+              {languages.map((l) => (
+                <button
+                  key={l.value}
+                  role="option"
+                  aria-selected={locale === l.value}
+                  onClick={() => {
+                    setLocale(l.value);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-2.5 w-full px-3 py-2 text-[11px] font-semibold text-left transition-colors",
+                    locale === l.value
+                      ? "bg-blue text-white"
+                      : "text-gray-3 hover:bg-navy-line hover:text-white"
+                  )}
+                >
+                  <Flag country={l.country} className="w-5 h-3.5 rounded" />
+                  <span className="flex-1">{l.label}</span>
+                  {locale === l.value && <Check className="w-3.5 h-3.5" />}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </header>

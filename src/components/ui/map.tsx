@@ -22,6 +22,10 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+if (typeof window !== "undefined") {
+  MapLibreGL.setWorkerUrl("/maplibre-gl-worker.mjs");
+}
+
 const defaultStyles = {
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
   light: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
@@ -692,11 +696,14 @@ type MarkerTooltipProps = {
   children: ReactNode;
   /** Additional CSS classes for the tooltip container */
   className?: string;
+  /** Inline styles for the tooltip container (overrides bg-foreground/text-background) */
+  style?: React.CSSProperties;
 } & Omit<PopupOptions, "className" | "closeButton" | "closeOnClick">;
 
 function MarkerTooltip({
   children,
   className,
+  style,
   ...popupOptions
 }: MarkerTooltipProps) {
   const { marker, map } = useMarkerContext();
@@ -751,6 +758,7 @@ function MarkerTooltip({
         "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
         className,
       )}
+      style={style}
     >
       {children}
     </div>,
@@ -1629,13 +1637,17 @@ function buildArcCoordinates(
 ): [number, number][] {
   const [x0, y0] = from;
   const [xTo, y2] = to;
-  // Unwrap the destination longitude so |dx| <= 180. This makes arcs that
-  // straddle the antimeridian (e.g. Tokyo -> San Francisco) bow the short way
-  // across the Pacific instead of the long way around the globe. Resulting
-  // longitudes may fall outside [-180, 180]; MapLibre renders them correctly
-  // on the globe projection, and on mercator when world copies are enabled.
+  // Unwrap the destination longitude so |dx| <= 180 (the short way), but only
+  // while the result stays inside the visible world [-180, 180]. When the
+  // shortest path would cross the antimeridian and fall outside that range
+  // (e.g. America -> Vietnam), keep the in-world path instead so the arc
+  // renders as a single connection that never wraps around the map edges like
+  // a balloon ("line exits left and re-enters from the right").
   const rawDx = xTo - x0;
-  const x2 = rawDx > 180 ? xTo - 360 : rawDx < -180 ? xTo + 360 : xTo;
+  let x2 = rawDx > 180 ? xTo - 360 : rawDx < -180 ? xTo + 360 : xTo;
+  if (x2 < -180 || x2 > 180) {
+    x2 = xTo;
+  }
   const dx = x2 - x0;
   const dy = y2 - y0;
   const distance = Math.hypot(dx, dy);

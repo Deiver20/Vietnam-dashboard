@@ -3,7 +3,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Map,
-  MapArc,
   MapMarker,
   MarkerContent,
   MarkerLabel,
@@ -110,6 +109,23 @@ export function TradeRoutesMap({
     [valueFormatter, unit]
   );
 
+  // Aclara un color de marker para que el número se lea sobre el fondo oscuro
+  // del tooltip en dark mode (el azul #03488D casi no contrasta).
+  const markerReadableColor = useCallback(
+    (color: string) => {
+      if (!dark) return color;
+      const hex = color.startsWith("#") ? color.slice(1) : color;
+      if (!/^[0-9a-fA-F]{6}$/.test(hex)) return color;
+      const mix = (c: number) =>
+        Math.round(c * 0.55 + 255 * 0.45);
+      const r = mix(parseInt(hex.slice(0, 2), 16));
+      const g = mix(parseInt(hex.slice(2, 4), 16));
+      const b = mix(parseInt(hex.slice(4, 6), 16));
+      return `rgb(${r}, ${g}, ${b})`;
+    },
+    [dark]
+  );
+
   const maxValue = useMemo(
     () => Math.max(...origins.map((m) => m.value), 1),
     [origins]
@@ -142,18 +158,6 @@ export function TradeRoutesMap({
 
   const showAllLabels = zoom >= LABEL_ZOOM;
   const anyHovered = hoveredName !== null;
-
-  const arcs = useMemo(
-    () =>
-      origins.map((o) => ({
-        id: o.name,
-        from: o.coordinates,
-        to: destination.coordinates,
-        color: o.color,
-        value: o.value,
-      })),
-    [origins, destination]
-  );
 
   const onViewportChange = useCallback(
     (v: { center: [number, number]; zoom: number }) => {
@@ -315,41 +319,6 @@ export function TradeRoutesMap({
             maxZoom={MAX_ZOOM}
             attributionControl={{ compact: true }}
           >
-            <MapArc
-              data={arcs}
-              curvature={0.25}
-              samples={64}
-              paint={{
-                "line-color": ["get", "color"],
-                "line-width": selectedName
-                  ? [
-                      "case",
-                      ["==", ["get", "id"], selectedName],
-                      3.5,
-                      1.5,
-                    ]
-                  : 2,
-                "line-opacity": anyActive
-                  ? selectedName
-                    ? [
-                        "case",
-                        ["==", ["get", "id"], selectedName],
-                        0.95,
-                        0.1,
-                      ]
-                    : [
-                        "case",
-                        ["boolean", ["feature-state", "hover"], false],
-                        0.95,
-                        0.12,
-                      ]
-                  : 0.55,
-              }}
-              hoverPaint={{
-                "line-width": 3.5,
-              }}
-            />
-
             {origins.map((m) => {
               const isHovered = hoveredName === m.name;
               const isSelected = selectedName === m.name;
@@ -391,31 +360,40 @@ export function TradeRoutesMap({
                       />
                     </div>
                   </MarkerContent>
-                  <MarkerTooltip>
+                  <MarkerTooltip
+                    style={{
+                      background: dark ? "rgba(8, 20, 40, 0.97)" : "rgba(255, 255, 255, 0.98)",
+                      color: dark ? "#e8eefc" : "#1f2937",
+                      border: `1px solid ${dark ? "rgba(102, 166, 255, 0.25)" : "rgba(6, 37, 75, 0.15)"}`,
+                      boxShadow: dark
+                        ? "0 14px 36px rgba(0, 0, 0, 0.5)"
+                        : "0 14px 36px rgba(6, 37, 75, 0.12)",
+                    }}
+                  >
                     <div
                       className="max-w-[220px] text-left"
                       style={{ fontFamily: fontQ }}
                     >
                       <div
                         className="truncate text-[11px] font-bold leading-tight"
-                        style={{ color: dark ? "#1f2937" : "#ffffff" }}
+                        style={{ color: dark ? "#e8eefc" : "#1f2937" }}
                       >
                         {m.name}
                       </div>
                       <div
-                        className="mt-0.5 text-[11px] font-semibold leading-tight"
-                        style={{ color: m.color }}
+                        className="mt-0.5 text-[11px] font-bold leading-tight"
+                        style={{ color: markerReadableColor(m.color) }}
                       >
                         {formatValue(m.value)}
                       </div>
                       {Array.isArray(m.productos) && m.productos.length > 0 && (
                         <div
                           className="mt-1 border-t pt-1"
-                          style={{ borderColor: "rgba(128,128,128,0.3)" }}
+                          style={{ borderColor: dark ? "rgba(102, 166, 255, 0.2)" : "rgba(6, 37, 75, 0.12)" }}
                         >
                           <div
                             className="text-[9px] font-semibold uppercase tracking-wider"
-                            style={{ color: dark ? "#4b5563" : "#d1d5db" }}
+                            style={{ color: dark ? "#9aa7bd" : "#5a6478" }}
                           >
                             Productos
                           </div>
@@ -426,8 +404,9 @@ export function TradeRoutesMap({
                                 className="rounded px-1.5 py-0.5 text-[9px] font-medium"
                                 style={{
                                   background: dark
-                                    ? "rgba(0,0,0,0.06)"
-                                    : "rgba(255,255,255,0.16)",
+                                    ? "rgba(102, 166, 255, 0.14)"
+                                    : "rgba(6, 37, 75, 0.08)",
+                                  color: dark ? "#c5c6cc" : "#334155",
                                 }}
                               >
                                 {p}

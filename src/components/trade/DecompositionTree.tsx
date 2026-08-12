@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown, X, ArrowLeft } from "lucide-react";
 import type { HierarchyRow, HierarchyDimension, HierarchyMetric } from "@/app/interfaces/trade/interface";
 import { PillToggle } from "@/components/trade/PillToggle";
 import { useTradeTheme } from "./TradeThemeContext";
+import { CardHeader } from "./CardHeader";
 
 const fontQ = "var(--font-poppins), Poppins, sans-serif";
 
@@ -20,6 +21,10 @@ interface Props {
   onYearChange: (year: number) => void;
   loading?: boolean;
   unit?: { short: string; per: string };
+  /** Contenido extra a la derecha de la fila de año (p. ej. un toggle de vista). */
+  headerActions?: React.ReactNode;
+  /** Cuando se pasa, se renderiza en lugar de las columnas del árbol (p. ej. un mapa). */
+  contentOverride?: React.ReactNode;
 }
 
 const ALL_DIMENSIONS: HierarchyDimension[] = [
@@ -131,6 +136,8 @@ export function DecompositionTree({
   onYearChange,
   loading,
   unit = { short: "mt", per: "mt" },
+  headerActions,
+  contentOverride,
 }: Props) {
   const [path, setPath] = useState<string[]>([]);
   const labels = useMemo(() => getDimensionLabels(flow), [flow]);
@@ -233,6 +240,10 @@ export function DecompositionTree({
   };
 
   const selectRow = (level: number, key: string) => {
+    if (path[level] === key) {
+      setPath(path.slice(0, level));
+      return;
+    }
     const next = path.slice(0, level);
     next.push(key);
     setPath(next);
@@ -248,132 +259,144 @@ export function DecompositionTree({
         className="rounded-lg border p-4"
         style={{ borderColor: T.border, fontFamily: fontQ, backgroundColor: T.surface }}
       >
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-[10px] font-semibold uppercase tracking-[0.15em]"
-              style={{ color: T.accentNavy }}
-            >
-              Año
-            </span>
-            {availableYears.length === 0 ? (
-              <div
-                className="flex items-center gap-1.5 text-xs"
-                style={{ color: T.textMuted }}
-              >
-                <div
-                  className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+        <CardHeader
+          theme={T}
+          title="Desglose de operaciones"
+          subtitle="Navega por jerarquías: categoría, producto, país, empresa y aduana."
+          actions={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.15em]"
                   style={{ color: T.accentNavy }}
-                />
-                Cargando años…
+                >
+                  Año
+                </span>
+                {availableYears.length === 0 ? (
+                  <div
+                    className="flex items-center gap-1.5 text-xs"
+                    style={{ color: T.textMuted }}
+                  >
+                    <div
+                      className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                      style={{ color: T.accentNavy }}
+                    />
+                    Cargando años…
+                  </div>
+                ) : (
+                  <select
+                    aria-label="Año de análisis"
+                    value={selectedYear ?? availableYears[0]}
+                    onChange={e => onYearChange(Number(e.target.value))}
+                    className="rounded border px-2 py-1 text-xs font-semibold outline-none"
+                    style={{
+                      borderColor: T.borderStrong,
+                      color: T.textPrimary,
+                      backgroundColor: T.surfaceAlt,
+                      fontFamily: fontQ,
+                    }}
+                  >
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                )}
               </div>
-            ) : (
+              {headerActions}
+            </div>
+          }
+        />
+
+        {!contentOverride && (
+          <>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {dimensions.map((dim, idx) => (
+                <div
+                  key={dim}
+                  className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
+                  style={{ borderColor: T.borderStrong, backgroundColor: T.surfaceAlt }}
+                >
+                  <span className="font-semibold" style={{ color: T.textPrimary }}>
+                    {labels[dim]}
+                  </span>
+                  <div className="ml-1 flex items-center">
+                    <button
+                      type="button"
+                      aria-label={`Subir ${labels[dim]}`}
+                      onClick={() => moveDimension(idx, -1)}
+                      disabled={idx === 0}
+                      className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)] disabled:opacity-30"
+                      style={{ color: T.accentNavy }}
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Bajar ${labels[dim]}`}
+                      onClick={() => moveDimension(idx, 1)}
+                      disabled={idx === dimensions.length - 1}
+                      className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)] disabled:opacity-30"
+                      style={{ color: T.accentNavy }}
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${labels[dim]}`}
+                      onClick={() => removeDimension(idx)}
+                      className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)]"
+                      style={{ color: "#ef4444" }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
               <select
-                aria-label="Año de análisis"
-                value={selectedYear ?? availableYears[0]}
-                onChange={e => onYearChange(Number(e.target.value))}
+                aria-label="Agregar dimensión"
+                value=""
+                onChange={e => addDimension(e.target.value as HierarchyDimension)}
                 className="rounded border px-2 py-1 text-xs font-semibold outline-none"
-                style={{
-                  borderColor: T.borderStrong,
-                  color: T.textPrimary,
-                  backgroundColor: T.surfaceAlt,
-                  fontFamily: fontQ,
-                }}
+                style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
               >
-                {availableYears.map(y => (
-                  <option key={y} value={y}>{y}</option>
+                <option value="" disabled>Agregar dimensión</option>
+                {ALL_DIMENSIONS.filter(d => !dimensions.includes(d)).map(d => (
+                  <option key={d} value={d}>{labels[d]}</option>
                 ))}
               </select>
-            )}
-          </div>
-        </div>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          {dimensions.map((dim, idx) => (
-            <div
-              key={dim}
-              className="flex items-center gap-1 rounded border px-2 py-1 text-xs"
-              style={{ borderColor: T.borderStrong, backgroundColor: T.surfaceAlt }}
-            >
-              <span className="font-semibold" style={{ color: T.textPrimary }}>
-                {labels[dim]}
-              </span>
-              <div className="ml-1 flex items-center">
-                <button
-                  type="button"
-                  aria-label={`Subir ${labels[dim]}`}
-                  onClick={() => moveDimension(idx, -1)}
-                  disabled={idx === 0}
-                  className="rounded p-0.5 hover:bg-white disabled:opacity-30"
-                  style={{ color: T.accentNavy }}
-                >
-                  <ChevronUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Bajar ${labels[dim]}`}
-                  onClick={() => moveDimension(idx, 1)}
-                  disabled={idx === dimensions.length - 1}
-                  className="rounded p-0.5 hover:bg-white disabled:opacity-30"
-                  style={{ color: T.accentNavy }}
-                >
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Quitar ${labels[dim]}`}
-                  onClick={() => removeDimension(idx)}
-                  className="rounded p-0.5 hover:bg-white"
-                  style={{ color: "#ef4444" }}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
             </div>
-          ))}
 
-          <select
-            aria-label="Agregar dimensión"
-            value=""
-            onChange={e => addDimension(e.target.value as HierarchyDimension)}
-            className="rounded border px-2 py-1 text-xs font-semibold outline-none"
-            style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
-          >
-            <option value="" disabled>Agregar dimensión</option>
-            {ALL_DIMENSIONS.filter(d => !dimensions.includes(d)).map(d => (
-              <option key={d} value={d}>{labels[d]}</option>
-            ))}
-          </select>
-        </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs" style={{ color: T.textMuted }}>
+                <span>Métrica:</span>
+                <PillToggle<HierarchyMetric>
+                  options={[
+                    { id: "volumenKg", label: `Volumen (${unit.short})` },
+                    { id: "precioUsd", label: `USD/${unit.per}` },
+                  ]}
+                  value={metric}
+                  onChange={onMetricChange}
+                  ariaLabel="Cambiar métrica"
+                />
+              </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs" style={{ color: T.textMuted }}>
-            <span>Métrica:</span>
-            <PillToggle<HierarchyMetric>
-              options={[
-                { id: "volumenKg", label: `Volumen (${unit.short})` },
-                { id: "precioUsd", label: `USD/${unit.per}` },
-              ]}
-              value={metric}
-              onChange={onMetricChange}
-              ariaLabel="Cambiar métrica"
-            />
-          </div>
-
-          {path.length > 0 && (
-            <button
-              type="button"
-              onClick={clearPath}
-              className="flex items-center gap-1 rounded border px-2 py-1 text-xs font-semibold hover:bg-white"
-              style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
-            >
-              <ArrowLeft className="h-3 w-3" /> Reiniciar jerarquía
-            </button>
-          )}
-        </div>
+              {path.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearPath}
+                  className="flex items-center gap-1 rounded border px-2 py-1 text-xs font-semibold hover:bg-[var(--trade-surface-hover)]"
+                  style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
+                >
+                  <ArrowLeft className="h-3 w-3" /> Reiniciar jerarquía
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {path.length > 0 && (
+      {!contentOverride && path.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs" style={{ fontFamily: fontQ, color: T.textMuted }}>
           <span className="font-semibold uppercase tracking-wider">Filtro activo:</span>
           {path.map((val, i) => (
@@ -385,14 +408,15 @@ export function DecompositionTree({
         </div>
       )}
 
-      {loading && (
+      {!contentOverride && loading && (
         <div className="flex items-center gap-2 text-sm" style={{ color: T.textMuted, fontFamily: fontQ }}>
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" style={{ color: T.accentNavy }} />
           Cargando operaciones…
         </div>
       )}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto">
+      {contentOverride ? contentOverride : (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto">
         <TreeColumn
           title="Total"
           rows={[
@@ -429,7 +453,8 @@ export function DecompositionTree({
             disabledKeys={new Set(col.rows.filter(r => r.isOthers).map(r => r.key))}
           />
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { useTradeData } from "@/hooks/trade/useTradeData";
@@ -54,18 +55,28 @@ const TABS_WITH_DATA_PANEL = new Set([
 export function DashboardContent({ tabId }: DashboardContentProps) {
   const { locale, filters } = useDashboard();
   const t = getTranslation(locale);
-  const { overview, totals, timeline, options, optionsLoading, loading, error } = useTradeData(filters);
+  const { overview, totals, timeline, options, loading, error } = useTradeData(filters);
   const { data: monthlyData, loading: monthlyLoading, error: monthlyError } = useTotalImportsMonthly(filters);
 
   const useGlobalFilters = TABS_WITH_GLOBAL_FILTERS.has(tabId);
   const useDataPanel = TABS_WITH_DATA_PANEL.has(tabId);
   const isProjectionTab = tabId === "price-projection";
 
+  // Cada vez que se entra a una pestaña se incrementa su contador; los bar
+  // race usan el contador como runKey para arrancar desde el año inicial.
+  const [tabRunKeys, setTabRunKeys] = useState<Record<string, number>>({});
+  const [prevTabId, setPrevTabId] = useState(tabId);
+  if (prevTabId !== tabId) {
+    setPrevTabId(tabId);
+    setTabRunKeys((prev) => ({ ...prev, [tabId]: (prev[tabId] ?? 0) + 1 }));
+  }
+  const raceRunKey = tabRunKeys["imports-overview"] ?? 0;
+
   return (
     <div className="flex flex-1 overflow-hidden relative">
       <main className="flex-1 overflow-y-auto p-6">
         <div className="w-full">
-          {useGlobalFilters && <GlobalFilters options={options} />}
+          {useGlobalFilters && <GlobalFilters options={options} showMonthFilter={tabId !== "imports-overview"} />}
 
           {useGlobalFilters && loading && (
             <div className="flex items-center justify-center h-64 text-gray-4">
@@ -90,6 +101,7 @@ export function DashboardContent({ tabId }: DashboardContentProps) {
                     subtitle={t.dashboard.chartVolumeMtRace}
                     locale={locale}
                     interval={filters.animationSpeed ?? 1500}
+                    runKey={raceRunKey}
                   />
                   <ImportsByImporterChart
                     filters={filters}
@@ -97,6 +109,7 @@ export function DashboardContent({ tabId }: DashboardContentProps) {
                     subtitle={t.dashboard.chartVolumeMtRace}
                     locale={locale}
                     interval={filters.animationSpeed ?? 1500}
+                    runKey={raceRunKey}
                   />
                 </div>
               ) : tabId === "total-imports" ? (

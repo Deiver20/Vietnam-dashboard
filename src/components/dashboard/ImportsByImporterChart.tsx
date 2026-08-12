@@ -12,6 +12,7 @@ interface ImportsByImporterChartProps {
   subtitle: string;
   locale: Locale;
   interval?: number;
+  runKey?: number;
 }
 
 export function ImportsByImporterChart({
@@ -20,6 +21,7 @@ export function ImportsByImporterChart({
   subtitle,
   locale,
   interval,
+  runKey,
 }: ImportsByImporterChartProps) {
   const { data, loading, error } = useRaceData(filters, "importer");
 
@@ -48,6 +50,7 @@ export function ImportsByImporterChart({
       dimension="importer"
       locale={locale}
       interval={interval}
+      runKey={runKey}
     />
   );
 }

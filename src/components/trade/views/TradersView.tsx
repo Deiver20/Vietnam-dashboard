@@ -141,28 +141,32 @@ export function TradersView() {
 
   const leftChartData = useMemo(() => {
     if (!datos) return [];
-    return topByLeftMetric.map(p => {
-      const rowA = datos.find(d => d.entidad === p.entidad && d.year === yearA);
-      const rowB = datos.find(d => d.entidad === p.entidad && d.year === yearB);
-      return {
-        entidad: p.entidad,
-        [String(yearA)]: rowA ? rowA[leftMetric] : 0,
-        [String(yearB)]: rowB ? rowB[leftMetric] : 0,
-      };
-    });
+    return topByLeftMetric
+      .map(p => {
+        const rowA = datos.find(d => d.entidad === p.entidad && d.year === yearA);
+        const rowB = datos.find(d => d.entidad === p.entidad && d.year === yearB);
+        return {
+          entidad: p.entidad,
+          [String(yearA)]: rowA ? rowA[leftMetric] : 0,
+          [String(yearB)]: rowB ? rowB[leftMetric] : 0,
+        };
+      })
+      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
   }, [datos, topByLeftMetric, yearA, yearB, leftMetric]);
 
   const rightChartData = useMemo(() => {
     if (!datos) return [];
-    return topByPrice.map(p => {
-      const rowA = datos.find(d => d.entidad === p.entidad && d.year === yearA);
-      const rowB = datos.find(d => d.entidad === p.entidad && d.year === yearB);
-      return {
-        entidad: p.entidad,
-        [String(yearA)]: rowA ? rowA.precioUsd : 0,
-        [String(yearB)]: rowB ? rowB.precioUsd : 0,
-      };
-    });
+    return topByPrice
+      .map(p => {
+        const rowA = datos.find(d => d.entidad === p.entidad && d.year === yearA);
+        const rowB = datos.find(d => d.entidad === p.entidad && d.year === yearB);
+        return {
+          entidad: p.entidad,
+          [String(yearA)]: rowA ? rowA.precioUsd : 0,
+          [String(yearB)]: rowB ? rowB.precioUsd : 0,
+        };
+      })
+      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
   }, [datos, topByPrice, yearA, yearB]);
 
   const series = useMemo(() => {
@@ -178,7 +182,6 @@ export function TradersView() {
   const altura = Math.max(360, topByLeftMetric.length * 30 + 60);
   const yWidth = tipo === "customs" ? 150 : 220;
 
-  const meta = TIPO_META[tipo];
   const leftTitleLabel = LEFT_METRIC_OPTIONS.find(o => o.id === leftMetric)?.label ?? "";
 
   const selectStyle: React.CSSProperties = {
@@ -260,7 +263,7 @@ export function TradersView() {
                   onChange={e => setYearA(Number(e.target.value))}
                   style={selectStyle}
                 >
-                  {yearsList.map(y => (
+                  {yearsList.filter(y => y !== yearB).map(y => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
@@ -276,7 +279,7 @@ export function TradersView() {
                   onChange={e => setYearB(Number(e.target.value))}
                   style={selectStyle}
                 >
-                  {yearsList.map(y => (
+                  {yearsList.filter(y => y !== yearA).map(y => (
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
@@ -319,12 +322,7 @@ export function TradersView() {
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
-              eyebrow={`TOP 15 · ${meta.label.toUpperCase()}`}
-              title={
-                <>
-                  Por <em className="acc">{leftTitleLabel.toLowerCase()}</em> — {yearA} vs {yearB}
-                </>
-              }
+              title={`Top 15 ${ROW_LABEL_PLURAL[tipo]} por ${leftTitleLabel.toLowerCase()} (${comparar ? `${yearA} vs ${yearB}` : singleYearValue})`}
               acciones={
                 <PillToggle<LeftMetric>
                   options={LEFT_METRIC_OPTIONS}
@@ -353,12 +351,7 @@ export function TradersView() {
             </ChartCard>
 
             <ChartCard
-              eyebrow={`TOP 15 · ${meta.label.toUpperCase()}`}
-              title={
-                <>
-                  Por <em className="acc">precio</em> (USD/{unit.per}) — {yearA} vs {yearB}
-                </>
-              }
+              title={`Top 15 ${ROW_LABEL_PLURAL[tipo]} por precio (USD/${unit.per}) (${comparar ? `${yearA} vs ${yearB}` : singleYearValue})`}
             >
               {!datos ? (
                 <div className="flex h-[480px] items-center justify-center text-gray-4">
@@ -383,8 +376,7 @@ export function TradersView() {
 
       {vista === "tabla" && (
         <ChartCard
-          eyebrow={`DETALLE · ${meta.label.toUpperCase()}`}
-          title={<>Pivot <em className="acc">{ROW_LABEL[tipo].toLowerCase()} × mes</em></>}
+          title={`Pivot ${ROW_LABEL[tipo].toLowerCase()} × mes`}
           subtitle={`Volumen (${unit.short}), valor y precio por ${ROW_LABEL[tipo].toLowerCase()} y mes, ordenado por volumen total (${comparar ? `${yearA} vs ${yearB}` : singleYearValue}).`}
         >
           {errorBreakdown && (
@@ -422,8 +414,7 @@ export function TradersView() {
 
       {vista === "mapa" && (
         <ChartCard
-          eyebrow={`TOP 15 · ${meta.label.toUpperCase()}`}
-          title={<>Rutas de <em className="acc">{ROW_LABEL[tipo].toLowerCase()}</em> → Vietnam</>}
+          title="Rutas → Vietnam"
           subtitle={`Ubicación estimada de los principales ${ROW_LABEL_PLURAL[tipo]} por volumen (${unit.short}) agregado ${comparar ? `${yearA}-${yearB}` : singleYearValue}.`}
         >
           {!datos ? (

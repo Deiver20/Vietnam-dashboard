@@ -4,6 +4,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
+import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -15,6 +16,8 @@ interface CIFPriceDistributionProps {
 export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProps) {
   const { locale } = useDashboard();
   const t = getTranslation(locale);
+  const { ref: cardRef, light } = useScopeLight();
+  const pal = chartPalette(light);
 
   if (loading && data.length === 0) {
     return (
@@ -59,7 +62,7 @@ export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProp
   }
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceDistribution}</h3>
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
@@ -70,17 +73,17 @@ export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProp
                 <stop offset="100%" stopColor="#0066FF" stopOpacity={0.05} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#1a2b40" strokeDasharray="3 3" />
+            <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
             <XAxis
               dataKey="range"
-              stroke="#94959b"
+              stroke={pal.axis}
               fontSize={10}
               tickFormatter={(v: number) => formatCIFPrice(v)}
               minTickGap={20}
             />
-            <YAxis stroke="#94959b" fontSize={10} />
+            <YAxis stroke={pal.axis} fontSize={10} />
             <Tooltip
-              contentStyle={{ background: "#061224", border: "1px solid #1a2b40", borderRadius: 6, fontSize: 12 }}
+              contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
               labelFormatter={(_label, payload) => {
                 const p = payload?.[0]?.payload as { range?: number; rangeEnd?: number } | undefined;
                 return p?.range !== undefined && p?.rangeEnd !== undefined
