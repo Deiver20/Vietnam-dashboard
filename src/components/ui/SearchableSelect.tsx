@@ -85,13 +85,29 @@ export function SearchableSelect({
     }
   }, [open]);
 
-  const handleOpen = () => {
-    if (!disabled && !loading) {
-      setSearch("");
-      setVisibleCount(VISIBLE_COUNT);
-      setOpen(true);
-    }
-  };
+  const updateDropdownPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const width = Math.min(rect.width, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    setDropdownPosition({
+      top: Math.min(rect.bottom + 6, window.innerHeight - 12),
+      left,
+      width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updateDropdownPosition();
+    window.addEventListener("resize", updateDropdownPosition);
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateDropdownPosition);
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+    };
+  }, [open, updateDropdownPosition]);
 
   const handleToggle = () => {
     if (!disabled && !loading) {
@@ -106,14 +122,7 @@ export function SearchableSelect({
               ? "trade-scope-dark"
               : ""
         );
-        if (triggerRef.current) {
-          const rect = triggerRef.current.getBoundingClientRect();
-          setDropdownPosition({
-            top: rect.bottom + window.scrollY + 6,
-            left: rect.left + window.scrollX,
-            width: rect.width,
-          });
-        }
+        updateDropdownPosition();
       }
       setOpen((prev) => !prev);
     }

@@ -51,7 +51,7 @@ export function RightPanel() {
   return (
     <>
       <aside
-        className={`pointer-events-auto hidden lg:flex flex-col shrink-0 h-full rounded-[14px] overflow-hidden transition-all duration-300 ease-in-out backdrop-blur-[18px]`}
+        className={`pointer-events-auto hidden lg:flex lg:absolute lg:right-0 lg:top-0 flex-col shrink-0 h-full rounded-[14px] overflow-hidden transition-all duration-300 ease-in-out backdrop-blur-[18px] z-10`}
         style={{ width: rightPanelCollapsed ? 48 : 400, ...surfaceStyle }}
       >
         {rightPanelCollapsed ? (

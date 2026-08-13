@@ -86,7 +86,7 @@ export function HsCodesView() {
     <div className="flex flex-col gap-4">
       {/* HS Code banner — recycled from the AGM-Front dashboard. */}
       <div
-        className="group relative overflow-hidden rounded-[14px] border p-6"
+        className="group relative overflow-hidden rounded-[14px] border p-4 sm:p-6"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
       >
         <span
@@ -101,11 +101,11 @@ export function HsCodesView() {
           >
             HS Codes
           </h3>
-          <div className="flex items-start justify-center gap-6">
+          <div className="grid w-full max-w-3xl grid-cols-2 gap-x-4 gap-y-4 sm:flex sm:items-start sm:justify-center sm:gap-6">
             {HS_POSITIONS.map((item, i) => (
               <div key={item.num} className="flex flex-col items-center gap-1">
                 <span
-                  className="text-[32px] font-black tabular-nums"
+                    className="text-[26px] font-black tabular-nums sm:text-[32px]"
                   style={{
                     background: `linear-gradient(135deg, ${POSITION_COLORS[i]} 0%, ${
                       dark ? POSITION_COLORS[i] : "#fff"

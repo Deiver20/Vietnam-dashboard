@@ -12,12 +12,12 @@ interface ExternalFeaturesExplainerProps {
 }
 
 export function ExternalFeaturesExplainer({ metrics, loading }: ExternalFeaturesExplainerProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
   if (loading && metrics.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -26,7 +26,7 @@ export function ExternalFeaturesExplainer({ metrics, loading }: ExternalFeatures
 
   if (metrics.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
@@ -66,7 +66,7 @@ export function ExternalFeaturesExplainer({ metrics, loading }: ExternalFeatures
   ];
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.correlations}</h3>
       <p className="text-[10px] text-gray-5 mb-3">{t.eda.avgCorrelation}</p>
       <div className="grid grid-cols-3 gap-3 flex-1">

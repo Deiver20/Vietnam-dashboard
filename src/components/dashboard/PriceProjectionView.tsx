@@ -29,7 +29,7 @@ type SubTab = "analysis" | "forecast";
 const AVAILABLE_YEARS = [2026, 2025, 2024, 2023, 2022];
 
 export function PriceProjectionView() {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { run, loading: runLoading, error: runError } = useLatestRun();
 
@@ -60,10 +60,10 @@ export function PriceProjectionView() {
   } = useForecast(run, forecastProduct, forecastFrequency, forecastHorizon);
 
   useEffect(() => {
-    if (!forecastProduct && forecastProducts.length > 0) {
-      setForecastProduct(forecastProducts[0]);
+    if (!forecastProduct && (forecastProducts.length > 0 || run?.products?.length)) {
+      setForecastProduct((forecastProducts[0] ?? run?.products?.[0]) || "");
     }
-  }, [forecastProducts, forecastProduct]);
+  }, [forecastProducts, forecastProduct, run]);
 
   useEffect(() => {
     if (analysisProduct === "all" && analysisProducts.length > 0) {
@@ -91,14 +91,14 @@ export function PriceProjectionView() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
       <CardHeader title={t.projection.title} subtitle={t.projection.subtitle} />
 
-      <div className="flex items-center gap-1 border-b border-navy-line">
+      <div className="flex flex-wrap items-center gap-1 border-b border-navy-line">
         <button
           type="button"
           onClick={() => setSubTab("analysis")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex min-h-11 items-center gap-2 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 ${
             subTab === "analysis"
               ? "border-blue-soft text-white"
               : "border-transparent text-gray-4 hover:text-gray-3"
@@ -112,7 +112,7 @@ export function PriceProjectionView() {
         <button
           type="button"
           onClick={() => setSubTab("forecast")}
-          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex min-h-11 items-center gap-2 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors sm:px-4 ${
             subTab === "forecast"
               ? "border-blue-soft text-white"
               : "border-transparent text-gray-4 hover:text-gray-3"
@@ -191,8 +191,8 @@ export function PriceProjectionView() {
 
               <CIFPriceMetrics metrics={metrics} loading={edaLoading} />
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
+                <div className="min-w-0 xl:col-span-2">
                   <CIFPriceLineChart
                     data={series}
                     loading={edaLoading}
@@ -202,7 +202,7 @@ export function PriceProjectionView() {
                 <CIFPriceDistribution data={series} loading={edaLoading} />
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-6">
                 <CIFPriceHeatmap
                   data={series}
                   loading={edaLoading}
@@ -215,7 +215,7 @@ export function PriceProjectionView() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-6">
                 <ExternalFeaturesChart
                   metrics={metrics}
                   external={external}
@@ -290,8 +290,8 @@ export function PriceProjectionView() {
                 loading={forecastLoading}
               />
 
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2">
+              <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
+                <div className="min-w-0 xl:col-span-2">
                   <ProjectionChart
                     points={points}
                     loading={forecastLoading}

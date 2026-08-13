@@ -42,7 +42,7 @@ export function useLatestRun(): LatestRunResult {
         const data = await fetchJson<{
           success: boolean;
           data: { run: ForecastRun | null; points: unknown[]; metrics: unknown[]; products: string[] };
-        }>("/trade/forecast/data?frequency=M&horizon=6");
+        }>("/trade/forecast/data?frequency=M&horizon=6&runOnly=true");
 
         if (cancelled) return;
         setRun(data.data?.run || null);
@@ -116,26 +116,39 @@ export function useEDA(
         if (year) params.set("year", String(year));
         if (month) params.set("month", String(month));
 
-        const [seriesRes, metricsRes, filtersRes] = await Promise.all([
-          fetchJson<{ success: boolean; data: EDASeriesPoint[] }>(
-            `/trade/eda/series?${params}`
-          ),
-          fetchJson<{ success: boolean; data: EDAMetric[] }>(
-            year ? `/trade/eda/metrics?${params}` : `/trade/eda/metrics?product=${product || "all"}`
-          ),
-          fetchJson<{
-            success: boolean;
-            data: { products: string[]; years: number[]; months: number[] };
-          }>("/trade/eda/filters"),
-        ]);
+        const filtersRes = fetchJson<{
+          success: boolean;
+          data: { products: string[]; years: number[]; months: number[] };
+        }>("/trade/eda/filters");
 
-        if (cancelled) return;
+        // Con "all" solo se necesita la lista de productos; pedir la serie
+        // completa (hasta 50k filas) sin filtro es muy costoso e innecesario.
+        if (product && product !== "all") {
+          const [seriesRes, metricsRes, filtersDone] = await Promise.all([
+            fetchJson<{ success: boolean; data: EDASeriesPoint[] }>(
+              `/trade/eda/series?${params}`
+            ),
+            fetchJson<{ success: boolean; data: EDAMetric[] }>(
+              year ? `/trade/eda/metrics?${params}` : `/trade/eda/metrics?product=${product}`
+            ),
+            filtersRes,
+          ]);
 
-        const seriesData = seriesRes.data || [];
-        setSeries(seriesData);
-        setMetrics(metricsRes.data || []);
-        setExternal(extractExternalFeatures(seriesData));
-        setProductsAvailable(filtersRes.data?.products || []);
+          if (cancelled) return;
+
+          const seriesData = seriesRes.data || [];
+          setSeries(seriesData);
+          setMetrics(metricsRes.data || []);
+          setExternal(extractExternalFeatures(seriesData));
+          setProductsAvailable(filtersDone.data?.products || []);
+        } else {
+          const filtersDone = await filtersRes;
+          if (cancelled) return;
+          setSeries([]);
+          setMetrics([]);
+          setExternal([]);
+          setProductsAvailable(filtersDone.data?.products || []);
+        }
       } catch (e) {
         if (!cancelled)
           setError(e instanceof Error ? e.message : "Unknown error");
@@ -180,7 +193,7 @@ export function useForecast(
     let cancelled = false;
 
     async function load() {
-      if (!_run) {
+      if (!_run || !product) {
         setPoints([]);
         setMetrics([]);
         setProductsAvailable([]);

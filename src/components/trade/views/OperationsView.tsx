@@ -90,14 +90,14 @@ export function OperationsView() {
     <div className="space-y-4">
       {!mapDatos || mapCargando ? (
         <div
-          className="flex h-[480px] items-center justify-center rounded-lg border text-sm"
+          className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center rounded-lg border text-sm"
           style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
         >
           <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: T.accentNavy }} /> Cargando conexiones…
         </div>
       ) : connections.length === 0 ? (
         <div
-          className="flex h-[480px] items-center justify-center rounded-lg border text-sm"
+          className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center rounded-lg border text-sm"
           style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
         >
           Sin conexiones con coordenadas para los filtros seleccionados.

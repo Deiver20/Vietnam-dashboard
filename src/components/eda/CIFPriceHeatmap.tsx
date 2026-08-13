@@ -24,12 +24,12 @@ function colorScale(value: number, min: number, max: number): string {
 }
 
 export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHeatmapProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
   if (loading && data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -38,7 +38,7 @@ export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHe
 
   if (data.length === 0 || productsAvailable.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
@@ -97,7 +97,7 @@ export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHe
   const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceHeatmap}</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] border-collapse">

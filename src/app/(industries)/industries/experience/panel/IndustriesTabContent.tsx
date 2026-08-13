@@ -36,11 +36,17 @@ interface IndustriesTabContentProps {
    stay exactly the Vietnam dashboard's. The tab views are wrapped in the
    dark trade theme so every bento card reads as one product with the shell. */
 export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
-  const { locale, filters } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
+  const filters = useDashboard((s) => s.filters);
   const setFilters = useDashboard((s) => s.setFilters);
   const t = getTranslation(locale);
-  const { options } = useTradeData(filters);
-  const monthly = useTotalImportsMonthly(filters);
+
+  // La pestaña de Proyección de Precios tiene su propio origen de datos
+  // (EDA/forecast) y no usa los filtros globales del comercio exterior, así
+  // que se evita disparar los fetches pesados de useTradeData/useTotalImportsMonthly.
+  const isPriceProjection = tabId === "price-projection";
+  const { options } = useTradeData(filters, !isPriceProjection);
+  const monthly = useTotalImportsMonthly(filters, !isPriceProjection);
   const dark = useIndustriesStore((s) => s.dashboardDark);
 
   // El acento del flujo (imports/exports/pricing) colorea la navegación
@@ -203,8 +209,10 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
           } as React.CSSProperties
         }
       >
-        <div className="mb-6">
-          <GlobalFilters options={options} showMonthFilter={tabId !== "imports-overview"} />
+        <div className="mb-4 min-w-0 sm:mb-6">
+          {!isPriceProjection && (
+            <GlobalFilters options={options} showMonthFilter={tabId !== "imports-overview"} />
+          )}
         </div>
         {content}
       </div>

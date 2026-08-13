@@ -47,18 +47,52 @@ const EMPTY_OPTIONS: TradeFilterOptions = {
   exporters: [],
 };
 
-export function useTradeData(filters: TradeFilters): UseTradeDataResult {
+type TradeDataCacheEntry = {
+  overview: TradeOverviewItem[];
+  totals: TradeTotalImports | null;
+  timeline: TradeTimelineItem[];
+};
+
+const moduleCache = new Map<string, TradeDataCacheEntry>();
+const optionsCache = new Map<string, TradeFilterOptions>();
+
+// Caché compartida entre todas las instancias de useTradeData (panel AI,
+// pestañas, shell). Mismo query string → mismos datos.
+export const useTradeDataCache = {
+  current: {
+    get: (query: string): TradeDataCacheEntry | undefined => moduleCache.get(query),
+    set: (query: string, entry: TradeDataCacheEntry) => moduleCache.set(query, entry),
+    getOptions: (query: string): TradeFilterOptions | undefined => optionsCache.get(query),
+    setOptions: (query: string, opts: TradeFilterOptions) => optionsCache.set(query, opts),
+  },
+};
+
+export function useTradeData(filters: TradeFilters, enabled = true): UseTradeDataResult {
   const [overview, setOverview] = useState<TradeOverviewItem[]>([]);
   const [totals, setTotals] = useState<TradeTotalImports | null>(null);
   const [timeline, setTimeline] = useState<TradeTimelineItem[]>([]);
   const [options, setOptions] = useState<TradeFilterOptions>(EMPTY_OPTIONS);
-  const [loading, setLoading] = useState(true);
-  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
+  const [optionsLoading, setOptionsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const optionsRef = useRef<TradeFilterOptions>(EMPTY_OPTIONS);
 
+  // Caché a nivel de módulo: mismo conjunto de filtros → mismos datos. Evita
+  // que el panel AI y cada pestaña disparen los fetches pesados de overview /
+  // total-imports / timeline / filters-all varias veces seguidas.
+  const cacheRef = useRef(
+    useTradeDataCache.current
+  );
+
   const loadData = useCallback(async (query: string) => {
+        const cached = cacheRef.current.get(query);
+        if (cached) {
+          setOverview(cached.overview);
+          setTotals(cached.totals);
+          setTimeline(cached.timeline);
+          return cached.totals;
+        }
         const [overviewRes, totalsRes, timelineRes] = await Promise.all([
           fetchJson<{ success: boolean; data: TradeOverviewItem[] }>(`/trade/overview${query}`),
           fetchJson<{ success: boolean; data: TradeTotalImports }>(`/trade/total-imports${query}`),
@@ -69,11 +103,23 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
         setTotals(totalsRes.data || null);
         setTimeline(timelineRes.data || []);
 
+        cacheRef.current.set(query, {
+          overview: overviewRes.data || [],
+          totals: totalsRes.data || null,
+          timeline: timelineRes.data || [],
+        });
+
     return totalsRes.data;
   }, []);
 
   const loadFilterOptions = useCallback(async (query: string, totalsData: TradeTotalImports | null) => {
     try {
+      const cachedOptions = cacheRef.current.getOptions(query);
+      if (cachedOptions) {
+        optionsRef.current = cachedOptions;
+        setOptions(cachedOptions);
+        return;
+      }
       const res = await fetchJson<{ success: boolean; data: Record<string, string[]> }>(
         `/trade/filters-all${query}`
       );
@@ -98,6 +144,7 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
 
       optionsRef.current = newOptions;
       setOptions(newOptions);
+      cacheRef.current.setOptions(query, newOptions);
     } catch (err) {
       console.warn("Failed to load filter options:", err);
       optionsRef.current = EMPTY_OPTIONS;
@@ -107,6 +154,8 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let cancelled = false;
 
     async function load() {
@@ -148,7 +197,7 @@ export function useTradeData(filters: TradeFilters): UseTradeDataResult {
     return () => {
       cancelled = true;
     };
-  }, [filters, loadData, loadFilterOptions]);
+  }, [filters, loadData, loadFilterOptions, enabled]);
 
   return { overview, totals, timeline, options, optionsLoading, loading, error };
 }

@@ -21,12 +21,17 @@ interface UseTotalImportsMonthlyResult {
   error: string | null;
 }
 
-export function useTotalImportsMonthly(filters: TradeFilters): UseTotalImportsMonthlyResult {
+export function useTotalImportsMonthly(
+  filters: TradeFilters,
+  enabled = true
+): UseTotalImportsMonthlyResult {
   const [data, setData] = useState<TotalImportsMonthlyPoint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let cancelled = false;
 
     async function load() {
@@ -60,7 +65,7 @@ export function useTotalImportsMonthly(filters: TradeFilters): UseTotalImportsMo
     return () => {
       cancelled = true;
     };
-  }, [filters]);
+  }, [filters, enabled]);
 
   return { data, loading, error };
 }

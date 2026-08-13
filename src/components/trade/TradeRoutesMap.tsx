@@ -157,7 +157,6 @@ export function TradeRoutesMap({
   }, [zoom]);
 
   const showAllLabels = zoom >= LABEL_ZOOM;
-  const anyHovered = hoveredName !== null;
 
   const onViewportChange = useCallback(
     (v: { center: [number, number]; zoom: number }) => {
@@ -204,17 +203,18 @@ export function TradeRoutesMap({
   }, [dark, resetTick, zoom]);
 
   const fontQ = "var(--font-poppins), Poppins, sans-serif";
+  const responsiveMinHeight = Math.max(300, height - 180);
 
   return (
     <div
       className="flex overflow-hidden rounded-[14px] border"
       style={{
-        height,
+        height: `clamp(${responsiveMinHeight}px, 70vw, ${height}px)`,
         borderColor: dark ? "rgba(102,166,255,0.18)" : "#e5e7eb",
       }}
     >
       <div
-        className="flex w-[220px] flex-shrink-0 flex-col"
+        className="hidden w-[220px] flex-shrink-0 flex-col md:flex md:w-[180px] lg:w-[220px]"
         style={{
           borderRight: `1px solid ${
             dark ? "rgba(102,166,255,0.10)" : "#e5e7eb"

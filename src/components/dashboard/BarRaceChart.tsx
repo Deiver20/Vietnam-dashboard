@@ -274,7 +274,7 @@ export function BarRaceChart({
 
   if (data.length === 0) {
     return (
-      <div className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col overflow-hidden">
+      <div className="group relative bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(380px,72vw,560px)] flex flex-col overflow-hidden">
         <span
           aria-hidden
           className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
@@ -289,7 +289,7 @@ export function BarRaceChart({
   }
 
   return (
-    <div className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[560px] flex flex-col overflow-hidden">
+    <div className="group relative bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(380px,72vw,560px)] flex flex-col overflow-hidden">
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"

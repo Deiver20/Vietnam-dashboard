@@ -100,7 +100,7 @@ export function Sidebar() {
                     : "text-gray-4 hover:bg-navy-card hover:text-white"
                 }`}
               >
-                <PageIcon index={i} className="w-[18px] h-[18px] shrink-0" />
+                <PageIcon tabId={tab.id} className="w-[18px] h-[18px] shrink-0" />
                 <span>{label}</span>
               </Link>
             );

@@ -29,7 +29,7 @@ interface LastVsProjectedProps {
 }
 
 export function LastVsProjected({ points, loading, frequency, horizon }: LastVsProjectedProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
   if (loading && points.length === 0) {

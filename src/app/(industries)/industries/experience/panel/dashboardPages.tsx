@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import styled from "styled-components";
 import { gsap } from "gsap";
 import { shallow } from "zustand/shallow";
+import { Menu, X } from "lucide-react";
 import Placeholder from "@/components/Placeholder";
 import { VARIABLES } from "./dataCarousel";
 import { getCountryDossier } from "../data/api";
@@ -26,6 +27,20 @@ const Wrapper = styled.div`
   pointer-events: none;
   visibility: hidden;
   font-family: var(--font-poppins), sans-serif;
+
+  @media (max-width: 1279px) {
+    padding: 0 24px;
+    gap: 12px;
+  }
+
+  @media (max-width: 1023px) {
+    display: block;
+    padding: 0 16px;
+  }
+
+  @media (max-width: 639px) {
+    padding: 0 12px;
+  }
 `;
 
 /* Column 1 — back button on top, the page list filling the rest.
@@ -43,6 +58,10 @@ const LeftCol = styled.div`
   &[data-native-wheel] {
     overscroll-behavior: contain;
   }
+
+  @media (max-width: 1023px) {
+    display: none;
+  }
 `;
 
 /* Column 3 — logo on top, the AI panel filling the rest.
@@ -58,6 +77,7 @@ const RightCol = styled.div`
   align-items: flex-end;
   flex-shrink: 0;
   min-height: 0;
+  width: 92px;
   pointer-events: auto;
   margin: 28px 0 20px;
   margin-right: -44px;
@@ -65,6 +85,21 @@ const RightCol = styled.div`
 
   &[data-native-wheel] {
     overscroll-behavior: contain;
+  }
+
+  @media (max-width: 1279px) {
+    display: contents;
+  }
+
+  /* At tablet/laptop widths the collapsed AI rail must overlay the edge,
+     rather than reserve a second half-width flex column beside the dashboard. */
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    position: absolute;
+    inset: 0 24px 0 auto;
+    display: flex;
+    width: 48px;
+    margin: 0;
+    padding: 0;
   }
 `;
 
@@ -81,6 +116,28 @@ const InfoRow = styled.div`
   font-family: var(--font-poppins), sans-serif;
   pointer-events: auto;
   margin-bottom: 12px;
+  touch-action: pan-y;
+
+  @media (max-width: 639px) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px 12px;
+    margin-bottom: 8px;
+    overflow-x: visible;
+    align-items: baseline;
+
+    & > span:nth-child(even) {
+      display: none;
+    }
+
+    /* Join "🇻🇳 Vietnam" and "Rendering" on the same row with a mid-dot. */
+    & > span:nth-child(3)::before {
+      content: "·";
+      margin-right: 12px;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 600;
+    }
+  }
 `;
 
 const InfoItem = styled.span`
@@ -88,6 +145,9 @@ const InfoItem = styled.span`
   color: #d8d8d8;
   font-weight: 600;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65));
 
   b {
@@ -122,9 +182,47 @@ const Body = styled.div`
   pointer-events: auto;
   padding-top: 28px;
   padding-bottom: 20px;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
   scrollbar-width: none;
   &::-webkit-scrollbar {
     display: none;
+  }
+
+  @media (max-width: 1023px) {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 1024px) and (max-width: 1279px) {
+    /* Leave a clear lane for the overlaid 48px AI rail plus a 16px gutter. */
+    padding-right: 64px;
+  }
+
+  @media (max-width: 639px) {
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+`;
+
+const MobileTopBar = styled.div`
+  display: none;
+
+  @media (max-width: 1023px) {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    margin-bottom: 12px;
+    padding: 8px 0;
+    background: linear-gradient(180deg, rgba(7, 18, 34, 0.96) 0%, rgba(7, 18, 34, 0.78) 82%, transparent 100%);
+    backdrop-filter: blur(12px);
   }
 `;
 
@@ -217,8 +315,9 @@ function LanguageSelector({ dark }: { dark: boolean }) {
         }`}
       >
         <Flag country={current.country} className="w-5 h-3.5 rounded" />
-        <span>{current.label}</span>
+        <span className="hidden xl:inline">{current.label}</span>
         <svg
+          className="hidden xl:inline"
           width="10"
           height="10"
           viewBox="0 0 24 24"
@@ -312,7 +411,7 @@ function CoverPage({
   const badgeInk =
     (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#10131a" : "#ffffff";
   return (
-    <div className="flex flex-col gap-7 max-w-[980px] pt-2">
+    <div className="flex max-w-[980px] flex-col gap-5 pt-2 sm:gap-7">
       <div>
         <div className={label} style={haloStyle}>
           Country
@@ -456,6 +555,16 @@ export default function DashboardPages() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen]);
 
   // Tab list: Cover + the 11 Vietnam dashboard tabs (translated labels).
   const pages = useMemo(
@@ -488,7 +597,6 @@ export default function DashboardPages() {
       { autoAlpha: 0, y: 70 },
       { autoAlpha: 1, y: 0, duration: 0.8, ease: "power3.out", onComplete: clearLock }
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -560,7 +668,11 @@ export default function DashboardPages() {
   const isCover = displayIndex === 0;
   const tab = DASHBOARD_TABS[Math.min(Math.max(displayIndex - 1, 0), DASHBOARD_TABS.length - 1)];
   const accent = variable.color;
-  const accentRgb = hexToRgb(accent);
+  const currentPage = pages[displayIndex] ?? pages[0];
+  const selectPage = (index: number) => {
+    setMobileNavOpen(false);
+    goToPage(index);
+  };
 
   return (
     <Wrapper ref={wrapRef}>
@@ -638,7 +750,7 @@ export default function DashboardPages() {
                           }
                         : {}
                     }
-                    onClick={() => goToPage(i)}
+                    onClick={() => selectPage(i)}
                     role="tab"
                     aria-selected={isActive}
                   >
@@ -646,7 +758,7 @@ export default function DashboardPages() {
                       {i === 0 ? (
                         <CoverIcon />
                       ) : (
-                        <PageIcon index={i - 1} />
+                        <PageIcon tabId={p.slug} />
                       )}
                     </span>
                     <span className="leading-tight text-left whitespace-normal flex-1 min-w-0">
@@ -683,8 +795,32 @@ export default function DashboardPages() {
       {/* ── Column 2: ONE scroll container — the shell chrome and the tab
           content scroll together. ── */}
       <Body ref={bodyRef} data-native-wheel>
+        <MobileTopBar data-native-wheel>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open dashboard navigation"
+            aria-expanded={mobileNavOpen}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/[0.08] text-white transition-colors hover:bg-white/[0.14]"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7d9ac7]">
+              {String(displayIndex).padStart(2, "0")} / {String(pages.length - 1).padStart(2, "0")}
+            </div>
+            <div className="truncate text-sm font-semibold text-white">
+              {currentPage?.label}
+            </div>
+          </div>
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: accent, boxShadow: `0 0 12px ${accent}` }}
+            aria-hidden="true"
+          />
+        </MobileTopBar>
         {!isCover && (
-          <InfoRow>
+          <InfoRow data-native-wheel>
             <InfoItem>
               <span style={{ fontSize: "clamp(18px, 2vw, 28px)", lineHeight: 1.25 }}>
                 <span style={{ marginRight: 8 }}>{getCountryFlag(countryId!)}</span>
@@ -726,6 +862,11 @@ export default function DashboardPages() {
           <div className="flex items-center gap-2 shrink-0">
             <LanguageSelector dark={dark} />
             <ThemeToggle dark={dark} onToggle={toggleDashboardDark} />
+            <Placeholder
+              className="h-7 w-auto min-w-[62px] shrink-0"
+              text="AGM"
+              originalFile="assets/logoAGMLightShort.svg"
+            />
           </div>
         </div>
 
@@ -740,7 +881,7 @@ export default function DashboardPages() {
         )}
 
         {!isCover && (
-          <div className="mb-5 flex items-end justify-between gap-6 border-b border-white/[0.12] pb-3">
+          <div className="mb-5 flex items-end justify-between gap-6 border-b border-white/[0.12] pb-3 max-[639px]:mb-4 max-[639px]:flex-col max-[639px]:items-start max-[639px]:gap-2">
             <div className="flex min-w-0 items-center gap-3">
               <span
                 className="shrink-0 text-[10px] font-semibold tabular-nums tracking-[0.18em] text-[#7d9ac7]"
@@ -762,17 +903,76 @@ export default function DashboardPages() {
         {!isCover && <IndustriesTabContent tabId={tab.id} />}
       </Body>
 
-      {/* ── Column 3: logo + AI panel ── */}
+      {/* ── Column 3: AI panel ── */}
       <RightCol data-native-wheel>
-        <Placeholder
-          className="h-7 w-auto min-w-[62px] shrink-0 absolute top-0 right-0"
-          text="AGM"
-          originalFile="assets/logoAGMLightShort.svg"
-        />
-        <div className="flex-1 min-h-0 w-full flex justify-end mt-10">
+        <div className="flex-1 min-h-0 w-full flex justify-end mt-10 max-lg:mt-0 lg:relative">
           <IndustriesAiPanel />
         </div>
       </RightCol>
+
+      {mobileNavOpen && (
+        <div className="pointer-events-auto fixed inset-0 z-[80] lg:hidden" data-native-wheel>
+          <button
+            type="button"
+            aria-label="Close dashboard navigation"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <aside
+            className="absolute left-0 top-0 flex h-full w-[min(86vw,340px)] flex-col border-r border-white/15 bg-[#061426]/[.98] p-4 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Dashboard navigation"
+          >
+            <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7d9ac7]">
+                  Dashboard pages
+                </div>
+                <div className="mt-1 text-sm font-semibold text-white">
+                  {dossier.countryName} · {variable.label}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                aria-label="Close dashboard navigation"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <nav className="min-h-0 flex-1 overflow-y-auto" aria-label="Dashboard pages">
+              <div className="flex flex-col gap-1" role="tablist" aria-orientation="vertical">
+                {pages.map((p, i) => {
+                  const active = displayIndex === i;
+                  return (
+                    <button
+                      key={p.slug}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => selectPage(i)}
+                      className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
+                        active ? "text-white" : "text-white/60 hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                      style={active ? { background: `${accent}22`, boxShadow: `inset 0 0 0 1px ${accent}55` } : undefined}
+                    >
+                      <span className="shrink-0" style={{ color: active ? accent : undefined }}>
+                        {i === 0 ? <CoverIcon /> : <PageIcon tabId={p.slug} />}
+                      </span>
+                      <span className="min-w-0 flex-1 leading-tight">{p.label}</span>
+                      <span className="text-[10px] tabular-nums text-white/35">
+                        {String(i).padStart(2, "0")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </aside>
+        </div>
+      )}
     </Wrapper>
   );
 }

@@ -10,10 +10,13 @@ export function ChatView() {
   const { chatMessages, sendMessage, clearChat, isLoadingChat } = useAiChat();
   const { dark } = useAiPanelEnv();
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [chatMessages]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -119,7 +122,7 @@ export function ChatView() {
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto py-3 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto py-3 space-y-3">
         {chatMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Sparkles className="h-10 w-10 mb-3 text-[#227BFF] opacity-60" />
@@ -173,8 +176,6 @@ export function ChatView() {
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       <form

@@ -32,7 +32,7 @@ function formatDate(dateStr: string, frequency: "D" | "M"): string {
 }
 
 export function ProjectedValuesTable({ points, loading, frequency }: ProjectedValuesTableProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
   if (loading && points.length === 0) {

@@ -72,7 +72,7 @@ export function CountriesDetailedView() {
   return (
     <div className="space-y-4">
       <div
-        className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3"
+        className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-3 sm:px-4"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
         role="group"
         aria-label="Selector de año"
@@ -131,7 +131,7 @@ export function CountriesDetailedView() {
             </select>
           </>
         )}
-        <span className="ml-auto" style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif" }}>
+        <span className="w-full sm:ml-auto sm:w-auto" style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif" }}>
           <PillToggle<Vista>
             options={[
               { id: "pivot", label: "Pivot" },
@@ -188,7 +188,7 @@ export function CountriesDetailedView() {
             <CountryChoroplethMap data={mapRows} unit={unit.short} />
           ) : (
             <div
-              className="flex h-[480px] items-center justify-center rounded-lg border text-sm"
+              className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center rounded-lg border text-sm"
               style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
             >
               <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: T.accentNavy }} /> Cargando volumen por país…

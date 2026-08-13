@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { TraderMonthlyBreakdown } from "@/app/interfaces/trade/interface";
 import { MESES } from "@/app/lib/trade/constants";
@@ -164,6 +164,7 @@ export function TraderPivotTable({
 }) {
   const { monthKeys, rows, totals, years } = data;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<HTMLDivElement>(null);
   const T = useTradeTheme();
   const dark = T.mode === "dark";
 
@@ -239,13 +240,14 @@ export function TraderPivotTable({
   return (
     <div className="space-y-3">
       <div
+        ref={scrollRef}
         className="overflow-auto"
         style={{ maxHeight: "70vh", border: `1px solid ${T.border}`, borderRadius: 8, backgroundColor: T.surface }}
       >
         <table style={{ borderCollapse: "separate", borderSpacing: 0, width: "max-content", minWidth: "100%" }}>
           <thead>
             <tr>
-              <th rowSpan={3} style={{ ...yearHeaderStyle(T), position: "sticky", left: 0, top: 0, zIndex: 4, minWidth: 240, textAlign: "left", backgroundColor: dark ? "#0a2748" : "#06254B" }}>
+              <th rowSpan={3} style={{ ...yearHeaderStyle(T), position: "sticky", left: 0, top: 0, zIndex: 4, minWidth: "clamp(150px, 38vw, 240px)", textAlign: "left", backgroundColor: dark ? "#0a2748" : "#06254B" }}>
                 {rowLabel} · Producto
               </th>
               {yearGroups.map((yg, i) => (
@@ -265,6 +267,30 @@ export function TraderPivotTable({
                   <span style={{ marginLeft: 0 }}>{yg.year}</span>
                 </th>
               ))}
+              <th
+                rowSpan={3}
+                aria-label="Desplazar a la derecha"
+                style={{
+                  ...yearHeaderStyle(T),
+                  position: "sticky",
+                  top: 0,
+                  right: 0,
+                  zIndex: 5,
+                  padding: 0,
+                  width: 32,
+                  minWidth: 32,
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label="Desplazar tabla a la derecha"
+                  onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
+                  className="flex h-full w-full items-center justify-center"
+                  style={{ cursor: "pointer", color: "#FFFFFF" }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </th>
             </tr>
             <tr>
               {monthKeys.map((k, i) => {

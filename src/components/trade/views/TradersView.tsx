@@ -182,6 +182,11 @@ export function TradersView() {
   const altura = Math.max(360, topByLeftMetric.length * 30 + 60);
   const yWidth = tipo === "customs" ? 150 : 220;
 
+  const responsiveYWidth = Math.min(
+    Math.max(typeof window === "undefined" ? 220 : Math.floor(window.innerWidth * 0.36), 118),
+    yWidth
+  );
+
   const leftTitleLabel = LEFT_METRIC_OPTIONS.find(o => o.id === leftMetric)?.label ?? "";
 
   const selectStyle: React.CSSProperties = {
@@ -205,10 +210,10 @@ export function TradersView() {
   return (
     <div className="space-y-4">
       <div
-        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 shadow-sm"
+        className="flex flex-col items-stretch justify-between gap-3 rounded-lg border p-3 shadow-sm sm:flex-row sm:items-center"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
       >
-        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
           <span
             className="text-[10px] font-semibold uppercase"
             style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", letterSpacing: "0.18em", color: T.textMuted }}
@@ -306,6 +311,7 @@ export function TradersView() {
             )}
           </div>
         </div>
+        <span className="self-start sm:self-auto">
         <PillToggle<Vista>
           options={[
             { id: "graficos", label: "Gráficos" },
@@ -316,6 +322,7 @@ export function TradersView() {
           onChange={setVista}
           ariaLabel="Cambiar vista"
         />
+        </span>
       </div>
 
       {vista === "graficos" && (
@@ -333,7 +340,7 @@ export function TradersView() {
               }
             >
               {!datos ? (
-                <div className="flex h-[480px] items-center justify-center text-gray-4">
+                <div className="flex h-[min(420px,78vw)] min-h-[300px] items-center justify-center text-gray-4">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : (
@@ -343,18 +350,18 @@ export function TradersView() {
                   orientacion="horizontal"
                   series={series}
                   yFormat={LEFT_METRIC_FORMAT[leftMetric]}
-                  altura={altura}
-                  yWidth={yWidth}
-                  stack
-                />
-              )}
-            </ChartCard>
+                   altura={altura}
+                   yWidth={responsiveYWidth}
+                   stack
+                 />
+               )}
+             </ChartCard>
 
             <ChartCard
               title={`Top 15 ${ROW_LABEL_PLURAL[tipo]} por precio (USD/${unit.per}) (${comparar ? `${yearA} vs ${yearB}` : singleYearValue})`}
             >
               {!datos ? (
-                <div className="flex h-[480px] items-center justify-center text-gray-4">
+                <div className="flex h-[min(420px,78vw)] min-h-[300px] items-center justify-center text-gray-4">
                   <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
               ) : (
@@ -365,7 +372,7 @@ export function TradersView() {
                   series={series}
                   yFormat={(v) => `$${v.toFixed(2)}`}
                   altura={altura}
-                  yWidth={yWidth}
+                  yWidth={responsiveYWidth}
                   stack
                 />
               )}
@@ -418,7 +425,7 @@ export function TradersView() {
           subtitle={`Ubicación estimada de los principales ${ROW_LABEL_PLURAL[tipo]} por volumen (${unit.short}) agregado ${comparar ? `${yearA}-${yearB}` : singleYearValue}.`}
         >
           {!datos ? (
-            <div className="flex h-[460px] items-center justify-center text-gray-4">
+            <div className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center text-gray-4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : (

@@ -26,7 +26,10 @@ export function CardHeader({
   const T = theme ?? (light ? lightTheme : darkTheme);
 
   return (
-    <div ref={ref} className="mb-3 flex shrink-0 items-start justify-between gap-3">
+    <div
+      ref={ref}
+      className="mb-3 flex shrink-0 flex-wrap items-start justify-between gap-3 max-[639px]:flex-col max-[639px]:items-stretch"
+    >
       <div className="min-w-0 flex-1">
         {title ? (
           <h3
@@ -42,7 +45,9 @@ export function CardHeader({
           </p>
         ) : null}
       </div>
-      {actions ? <div className="shrink-0">{actions}</div> : null}
+      {actions ? (
+        <div className="shrink-0 max-[639px]:self-end">{actions}</div>
+      ) : null}
     </div>
   );
 }

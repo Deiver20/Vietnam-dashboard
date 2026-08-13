@@ -131,7 +131,7 @@ export function ByCountryView() {
       >
         {modoTiempo === "meses" && (
           <div
-            className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5"
+            className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2.5 sm:px-4"
             style={{ borderColor: T.border, backgroundColor: T.surface }}
           >
             <span
@@ -162,7 +162,7 @@ export function ByCountryView() {
           </div>
         )}
         {!data ? (
-          <div className="flex h-[480px] items-center justify-center text-gray-4">
+          <div className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center text-gray-4">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : (
@@ -171,7 +171,7 @@ export function ByCountryView() {
             xKey="label"
             series={timelineSeries}
             yFormat={formatters.unit}
-            altura={480}
+            altura={380}
             etiquetasFinales
           />
         )}

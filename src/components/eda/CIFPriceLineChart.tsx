@@ -15,14 +15,14 @@ interface CIFPriceLineChartProps {
 }
 
 export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChartProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
 
   if (loading && data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -31,7 +31,7 @@ export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChar
 
   if (data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
@@ -64,7 +64,7 @@ export function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChar
   ];
 
   return (
-    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[380px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-white">{t.eda.cifPriceLine}</h3>
       </div>

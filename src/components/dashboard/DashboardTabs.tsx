@@ -47,7 +47,7 @@ export function DashboardTabs() {
                 aria-selected={isActive}
               >
                 <span style={{ color: isActive ? DEFAULT_COLOR : undefined }}>
-                  <PageIcon index={i} color={isActive ? DEFAULT_COLOR : undefined} />
+                  <PageIcon tabId={tab.id} color={isActive ? DEFAULT_COLOR : undefined} />
                 </span>
                 <span className="leading-tight text-center whitespace-normal">
                   {t.nav[tab.labelKey]}

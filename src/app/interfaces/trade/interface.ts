@@ -100,6 +100,7 @@ export const ALLOWED_PRODUCTS = [
 ];
 
 export const DASHBOARD_TABS = [
+  { id: "price-projection", labelKey: "priceProjection" as const, labelTop: "Price", labelBottom: "Projection" },
   { id: "imports-overview", labelKey: "importsOverview" as const, labelTop: "Imports", labelBottom: "Overview" },
   { id: "hs-codes", labelKey: "hsCodes" as const, labelTop: "HS Codes", labelBottom: null },
   { id: "total-imports", labelKey: "totalImports" as const, labelTop: "Total Imports", labelBottom: null },
@@ -109,7 +110,6 @@ export const DASHBOARD_TABS = [
   { id: "imports-by-country", labelKey: "importsByCountry" as const, labelTop: "Imports by Country", labelBottom: null },
   { id: "countries-detailed", labelKey: "countriesDetailed" as const, labelTop: "Countries", labelBottom: "Detailed" },
   { id: "imports-operations", labelKey: "importsOperations" as const, labelTop: "Imports", labelBottom: "Operations" },
-  { id: "price-projection", labelKey: "priceProjection" as const, labelTop: "Price", labelBottom: "Projection" },
 ];
 
 export interface HsCodeRow {

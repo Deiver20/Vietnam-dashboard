@@ -72,7 +72,7 @@ export function TimelineView() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
         <ChartCard
           title={filters.flow === "imports" ? "Importaciones por país" : "Exportaciones por país"}
           subtitle="Barras anuales por posición (mayor a menor); las cintas muestran la subida o bajada entre años."
@@ -84,9 +84,9 @@ export function TimelineView() {
           ) : yearlyData.length === 0 ? (
             <div className="flex h-[420px] items-center justify-center text-sm" style={{ color: T.textMuted }}>Sin datos para los filtros seleccionados.</div>
           ) : (
-            <div className="flex items-stretch gap-4">
+            <div className="flex flex-col items-stretch gap-4 md:flex-row">
               <aside
-                className="flex w-[200px] shrink-0 flex-col gap-1.5 rounded-xs border px-3 py-3"
+                className="grid w-full shrink-0 grid-cols-2 gap-1.5 rounded-xs border px-3 py-3 sm:grid-cols-3 md:flex md:w-[200px] md:flex-col md:grid-cols-1"
                 aria-label="Leyenda de países"
                 style={{ borderColor: T.border, backgroundColor: T.surface }}
               >
@@ -116,7 +116,7 @@ export function TimelineView() {
                   xKey="year"
                   series={countrySeries}
                   yFormat={formatters.mil}
-                  altura={420}
+                   altura={360}
                 />
               </div>
             </div>
@@ -139,7 +139,7 @@ export function TimelineView() {
               xKey="mes"
               series={yearSeries}
               yFormat={formatters.mil}
-              altura={420}
+               altura={360}
             />
           )}
         </ChartCard>

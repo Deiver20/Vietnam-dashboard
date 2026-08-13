@@ -416,7 +416,7 @@ export function DecompositionTree({
       )}
 
       {contentOverride ? contentOverride : (
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto">
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto">
         <TreeColumn
           title="Total"
           rows={[
@@ -483,7 +483,7 @@ function TreeColumn({
   const T = useTradeTheme();
   return (
     <div
-      className="min-w-[260px] flex-1 rounded-lg border p-3"
+      className="w-full min-w-0 flex-1 rounded-lg border p-3 lg:min-w-[260px]"
       style={{ borderColor: T.border, backgroundColor: T.surface }}
     >
       <div

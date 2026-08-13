@@ -77,7 +77,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
 
   if (loading) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[clamp(360px,60vw,480px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -86,7 +86,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
 
   if (error) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex items-center justify-center">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[clamp(360px,60vw,480px)] flex items-center justify-center">
         <div className="bg-red/10 border border-red/30 rounded-md p-4 text-red text-sm">
           {t.common.error}: {error}
         </div>
@@ -96,7 +96,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
 
   if (data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[clamp(360px,60vw,480px)] flex items-center justify-center text-gray-4 text-sm">
         {t.dashboard.noData}
       </div>
     );
@@ -105,7 +105,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
   const yFormatter = metric === "price" ? formatCIFPrice : formatVolume;
 
   return (
-    <div ref={cardRef} className="group relative bg-navy-card border border-navy-line rounded-lg p-5 h-[480px] flex flex-col overflow-hidden">
+    <div ref={cardRef} className="group relative bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(360px,60vw,480px)] flex flex-col overflow-hidden">
       <span
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-300 ease-out group-hover:scale-x-100"
@@ -114,13 +114,14 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
       <CardHeader
         title={t.dashboard.totalImportsChart}
         actions={
-          <div className="flex bg-navy-darker rounded-sm border border-navy-line overflow-hidden">
+          <div className="flex flex-wrap gap-1 bg-navy-darker rounded-sm border border-navy-line overflow-hidden p-0.5">
             <button
               type="button"
               onClick={() => setMetric("price")}
-              className={`px-3 py-1.5 text-xs font-medium transition-all ${
+              aria-pressed={metric === "price"}
+              className={`min-w-0 truncate px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-sm transition-all ${
                 metric === "price"
-                  ? "bg-blue/20 text-white border-blue"
+                  ? "bg-blue text-white shadow-sm ring-1 ring-blue"
                   : "text-gray-3 hover:text-white"
               }`}
             >
@@ -129,9 +130,10 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
             <button
               type="button"
               onClick={() => setMetric("volume")}
-              className={`px-3 py-1.5 text-xs font-medium transition-all ${
+              aria-pressed={metric === "volume"}
+              className={`min-w-0 truncate px-2 sm:px-3 py-1.5 text-[11px] sm:text-xs font-medium rounded-sm transition-all ${
                 metric === "volume"
-                  ? "bg-blue/20 text-white border-blue"
+                  ? "bg-blue text-white shadow-sm ring-1 ring-blue"
                   : "text-gray-3 hover:text-white"
               }`}
             >

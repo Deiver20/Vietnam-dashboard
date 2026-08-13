@@ -120,14 +120,14 @@ export function ByProductView() {
 
   return (
     <div className="space-y-4">
-      <div
-        className="flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3"
+<div
+        className="flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4"
         role="group"
         aria-label="Comparador de años"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
       >
         <span
-          className="text-[11px] font-semibold uppercase tracking-[0.2em]"
+          className="text-[11px] font-semibold uppercase tracking-[0.2em] sm:mr-1"
           style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
         >
           Comparar
@@ -140,19 +140,19 @@ export function ByProductView() {
             <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> Cargando años…
           </div>
         ) : (
-          <>
+          <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
             <select
               aria-label="Año A"
               value={yearA}
               onChange={e => setYearA(Number(e.target.value))}
-              style={selectStyle}
+              style={{ ...selectStyle, minWidth: 0, flex: "1 1 0" }}
             >
               {yearsList.filter(y => y !== yearB).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
             <span
-              className="text-xs"
+              className="shrink-0 text-xs"
               style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
             >
               vs
@@ -161,13 +161,13 @@ export function ByProductView() {
               aria-label="Año B"
               value={yearB}
               onChange={e => setYearB(Number(e.target.value))}
-              style={selectStyle}
+              style={{ ...selectStyle, minWidth: 0, flex: "1 1 0" }}
             >
               {yearsList.filter(y => y !== yearA).map(y => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-          </>
+          </div>
         )}
       </div>
 

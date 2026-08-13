@@ -13,7 +13,7 @@ interface CIFPriceMetricsProps {
 }
 
 export function CIFPriceMetrics({ metrics, loading }: CIFPriceMetricsProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
   if (loading && metrics.length === 0) {

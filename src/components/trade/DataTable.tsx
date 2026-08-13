@@ -125,7 +125,7 @@ export function DataTable<T = Record<string, unknown>>({
       </div>
 
       <div className="overflow-x-auto">
-        <table className={`w-full text-left ${agm ? "text-[11px]" : "text-sm"}`} style={{ fontFamily: fontQ }}>
+        <table className={`w-full min-w-[760px] text-left sm:min-w-0 ${agm ? "text-[11px]" : "text-sm"}`} style={{ fontFamily: fontQ }}>
           <thead>
             <tr
               className="text-[10px] uppercase"

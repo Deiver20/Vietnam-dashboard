@@ -48,14 +48,14 @@ function formatXAxis(v: string, frequency: "D" | "M"): string {
 }
 
 export function ProjectionChart({ points, loading, frequency, product }: ProjectionChartProps) {
-  const { locale } = useDashboard();
+  const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
 
   if (loading && points.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[460px] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,460px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -64,7 +64,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
 
   if (points.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[460px] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,460px)] flex items-center justify-center text-gray-4 text-sm">
         {t.projection.noData}
       </div>
     );
@@ -108,7 +108,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
   });
 
   return (
-    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-5 h-[460px] flex flex-col">
+    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,460px)] flex flex-col">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-white">{t.projection.forecastChart}</h3>
         <p className="text-[10px] text-gray-5 mt-1">
