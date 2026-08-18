@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
@@ -13,11 +14,37 @@ interface CIFPriceDistributionProps {
   loading: boolean;
 }
 
-export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProps) {
+function useDistributionBuckets(data: EDASeriesPoint[]) {
+  return useMemo(() => {
+    const values = data.map((p) => p.cif_price).filter((v): v is number => v !== null);
+    if (values.length === 0) return null;
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const bucketCount = 25;
+    const range = (max - min) / bucketCount || 1;
+    const buckets = Array.from({ length: bucketCount }, (_, i) => ({
+      range: min + i * range,
+      rangeEnd: min + (i + 1) * range,
+      count: 0,
+    }));
+    for (const v of values) {
+      let idx = Math.floor((v - min) / range);
+      if (idx >= bucketCount) idx = bucketCount - 1;
+      if (idx < 0) idx = 0;
+      buckets[idx].count += 1;
+    }
+    return buckets;
+  }, [data]);
+}
+
+export const CIFPriceDistribution = memo(function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
+
+  const buckets = useDistributionBuckets(data);
 
   if (loading && data.length === 0) {
     return (
@@ -28,37 +55,12 @@ export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProp
     );
   }
 
-  if (data.length === 0) {
+  if (!buckets) {
     return (
       <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
-  }
-
-  const values = data.map((p) => p.cif_price).filter((v): v is number => v !== null);
-  if (values.length === 0) {
-    return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
-        {t.eda.noData}
-      </div>
-    );
-  }
-
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const bucketCount = 25;
-  const range = (max - min) / bucketCount || 1;
-  const buckets = Array.from({ length: bucketCount }, (_, i) => ({
-    range: min + i * range,
-    rangeEnd: min + (i + 1) * range,
-    count: 0,
-  }));
-  for (const v of values) {
-    let idx = Math.floor((v - min) / range);
-    if (idx >= bucketCount) idx = bucketCount - 1;
-    if (idx < 0) idx = 0;
-    buckets[idx].count += 1;
   }
 
   return (
@@ -92,10 +94,10 @@ export function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProp
               }}
               formatter={(v) => [v as number, "Freq."]}
             />
-            <Area type="monotone" dataKey="count" stroke="#0066FF" strokeWidth={1.5} fill="url(#cif-dist)" />
+            <Area type="monotone" dataKey="count" stroke="#0066FF" strokeWidth={1.5} fill="url(#cif-dist)" isAnimationActive={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
-}
+});

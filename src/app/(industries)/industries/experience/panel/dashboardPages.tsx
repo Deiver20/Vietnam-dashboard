@@ -18,6 +18,28 @@ import PageIcon from "@/components/dashboard/PageIcon";
 import { Flag } from "@/components/ui/Flag";
 import { IndustriesTabContent } from "./IndustriesTabContent";
 
+// Label de pestaña del dashboard: para exports usa las variantes
+// "Exportaciones…", para el resto (imports/pricing/…) las de imports.
+function navLabel(
+  tab: (typeof DASHBOARD_TABS)[number],
+  dataType: string | null,
+  t: ReturnType<typeof getTranslation>
+): string {
+  const exportsKey: Record<string, string> = {
+    importsOverview: "exportsOverview",
+    totalImports: "totalExports",
+    importsByProduct: "exportsByProduct",
+    importsTimeline: "exportsTimeline",
+    importsByCountry: "exportsByCountry",
+    importsOperations: "exportsOperations",
+  };
+  const key: keyof typeof t.nav =
+    dataType === "exports"
+      ? ((exportsKey[tab.labelKey] ?? tab.labelKey) as keyof typeof t.nav)
+      : tab.labelKey;
+  return t.nav[key];
+}
+
 const Wrapper = styled.div`
   position: absolute;
   inset: 0;
@@ -566,16 +588,16 @@ export default function DashboardPages() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [mobileNavOpen]);
 
-  // Tab list: Cover + the 11 Vietnam dashboard tabs (translated labels).
+// Tab list: Cover + the 11 Vietnam dashboard tabs (translated labels).
   const pages = useMemo(
     () => [
       { slug: "cover", label: "Cover" },
       ...DASHBOARD_TABS.map((tab) => ({
         slug: tab.id,
-        label: t.nav[tab.labelKey],
+        label: navLabel(tab, dataType, t),
       })),
     ],
-    [locale] // eslint-disable-line react-hooks/exhaustive-deps
+    [locale, dataType] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const dossier = useMemo(
@@ -891,7 +913,7 @@ export default function DashboardPages() {
               </span>
               <span className="h-4 w-px shrink-0 bg-white/[0.2]" aria-hidden="true" />
               <h3 className="m-0 truncate text-[19px] font-medium tracking-[-0.015em] text-white">
-                {t.nav[tab.labelKey]}
+                {navLabel(tab, dataType, t)}
               </h3>
             </div>
             <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.16em] text-[#7d8492]">

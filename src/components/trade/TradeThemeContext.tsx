@@ -44,7 +44,7 @@ export const lightTheme: TradeTheme = {
   accentNavy: "#03488D",
   accentText: "#06254B",
   axisText: "#5a6478",
-  axisLine: "rgba(6, 37, 75, 0.16)",
+  axisLine: "rgba(6, 37, 75, 0.08)",
   tooltipBg: "#FFFFFF",
   tooltipBorder: "rgba(6, 37, 75, 0.15)",
   tooltipShadow: "0 14px 36px rgba(6, 37, 75, 0.10)",

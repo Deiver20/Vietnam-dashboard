@@ -6,6 +6,8 @@ import {
   RaceYearData,
 } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { useDashboard } from "@/store/useDashboard";
+import { translateCountry } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -43,6 +45,7 @@ export function useRaceData(
   const [data, setData] = useState<RaceYearData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const locale = useDashboard((s) => s.locale);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,14 +65,34 @@ export function useRaceData(
           `/trade/race${query}${separator}dimension=${dimension}&topN=${topN}`
         );
 
-        const mapped = (res.data || []).map((yearBlock) => ({
-          year: yearBlock.year,
-          items: yearBlock.items.map((item) => ({
-            name: item.name,
-            value: item.totalMt,
-            records: item.records,
-          })),
-        }));
+        const translateName = dimension === "country"
+          ? (n: string) => translateCountry(n, locale)
+          : (n: string) => n;
+
+        const mapped = (res.data || []).map((yearBlock) => {
+          const merged = new Map<
+            string,
+            { name: string; value: number; records: number }
+          >();
+          for (const item of yearBlock.items) {
+            const name = translateName(item.name);
+            const current = merged.get(name);
+            if (current) {
+              current.value += item.totalMt;
+              current.records += item.records ?? 0;
+            } else {
+              merged.set(name, {
+                name,
+                value: item.totalMt,
+                records: item.records ?? 0,
+              });
+            }
+          }
+          return {
+            year: yearBlock.year,
+            items: Array.from(merged.values()),
+          };
+        });
 
         if (!cancelled) setData(mapped);
       } catch (err) {
@@ -86,7 +109,7 @@ export function useRaceData(
     return () => {
       cancelled = true;
     };
-  }, [filters, dimension, topN]);
+  }, [filters, dimension, topN, locale]);
 
   return { data, loading, error };
 }

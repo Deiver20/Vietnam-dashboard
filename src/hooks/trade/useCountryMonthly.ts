@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, CountryMonthlyBreakdown, TradeApiResponse } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { translateCountry, translateProduct, translateCategory } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -21,6 +22,7 @@ export function useCountryMonthly(years: [number, number]): {
   fetcher: (f: TradeFilters) => Promise<CountryMonthlyBreakdown>;
 } {
   const filters = useDashboard((s) => s.filters);
+  const locale = useDashboard((s) => s.locale);
   const f = filters;
   const effective = useMemo<TradeFilters>(() => ({
     flow: f.flow, category: f.category, product: f.product, originCountry: f.originCountry,
@@ -33,8 +35,20 @@ export function useCountryMonthly(years: [number, number]): {
   const fetcher = useCallback(async (ff: TradeFilters) => {
     const q = buildTradeQueryString(ff);
     const res = await fetchJson<TradeApiResponse<CountryMonthlyBreakdown>>(`/trade/country-monthly${q}`);
-    return res.data || { years: [], months: [], monthKeys: [], rows: [], totals: { registros: 0, volumenKg: 0, valorUsd: 0, monthly: {} } };
-  }, []);
+    const data = res.data || { years: [], months: [], monthKeys: [], rows: [], totals: { registros: 0, volumenKg: 0, valorUsd: 0, monthly: {} } };
+    return {
+      ...data,
+      rows: (data.rows || []).map((row) => ({
+        ...row,
+        country: translateCountry(row.country, locale),
+        products: (row.products || []).map((p) => ({
+          ...p,
+          categoria: translateCategory(p.categoria, locale),
+          producto: translateProduct(p.producto, locale),
+        })),
+      })),
+    };
+  }, [locale]);
 
   return { filters: effective, fetcher };
 }

@@ -12,6 +12,7 @@ import { useYearComparator } from "@/hooks/trade/useYearComparator";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, CountryMonthlyBreakdown, ByCountryResponse } from "@/app/interfaces/trade/interface";
 
 type Vista = "pivot" | "mapa";
@@ -21,6 +22,8 @@ export function CountriesDetailedView() {
   const [vista, setVista] = useState<Vista>("pivot");
   const [mapYear, setMapYear] = useState<number | null>(null);
   const T = useTradeTheme();
+  const flow = useDashboard((s) => s.filters.flow);
+  const paisLabel = flow === "exports" ? "destino" : "origen";
 
   const unit = useMemo(() => getUnitLabel(), []);
 
@@ -148,7 +151,7 @@ export function CountriesDetailedView() {
         title={isMapa ? "Volumen por país" : "Pivot país × mes"}
         subtitle={
           isMapa
-            ? `Volumen (${unit.short}) por país de origen para ${effectiveMapYear ?? "—"}.`
+            ? `Volumen (${unit.short}) por país de ${paisLabel} para ${effectiveMapYear ?? "—"}.`
             : `Volumen (${unit.short}), valor y precio por país y mes, ordenado por volumen total.`
         }
       >

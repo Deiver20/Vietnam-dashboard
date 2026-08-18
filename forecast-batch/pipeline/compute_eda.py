@@ -7,12 +7,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from supabase import Client
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from .upsert_supabase import upsert
+from .upsert_ream import upsert  # noqa: E402
 
 
 def _aggregate(df: pd.DataFrame, freq: str) -> pd.DataFrame:
@@ -121,15 +120,17 @@ def _safe_corr(a: pd.Series, b: pd.Series) -> float | None:
 
 
 def compute_and_store_eda(
-    client: Client,
     run_id: str,
     df: pd.DataFrame,
     products: list[str],
     ext: pd.DataFrame,
     *,
     frequencies: tuple[str, ...] = ("D", "M"),
+    pais_codigo: str = "VIE",
+    industria: str = "Rend",
+    flujo: str = "Imp",
 ) -> dict:
-    """Para cada (product × freq): construye la serie, calcula métricas, upsert en Supabase.
+    """Para cada (product × freq): construye la serie, calcula métricas, upsert en REAM.
 
     Retorna un dict con conteos: {series: int, metrics: int}.
     """
@@ -166,6 +167,9 @@ def compute_and_store_eda(
                         "rolling_std_s": _to_float(r.get("rolling_std_s")),
                         "rolling_std_m": _to_float(r.get("rolling_std_m")),
                         "rolling_std_l": _to_float(r.get("rolling_std_l")),
+                        "pais_codigo": pais_codigo,
+                        "industria": industria,
+                        "flujo": flujo,
                     }
                 )
 
@@ -175,6 +179,9 @@ def compute_and_store_eda(
                     "product": product,
                     "frequency": freq,
                     "year": int(s["date"].dt.year.max()) if not s.empty else None,
+                    "pais_codigo": pais_codigo,
+                    "industria": industria,
+                    "flujo": flujo,
                     **m,
                 }
             )
@@ -184,18 +191,16 @@ def compute_and_store_eda(
     n_metrics = 0
     if series_rows:
         n_series = upsert(
-            client,
             "eda_series",
             series_rows,
-            on_conflict="run_id,product,frequency,date",
+            on_conflict="run_id,product,frequency,date,pais_codigo,industria,flujo",
         )
         print(f"[EDA] upsert eda_series: {n_series} filas")
     if metrics_rows:
         n_metrics = upsert(
-            client,
             "eda_metrics",
             metrics_rows,
-            on_conflict="run_id,product,frequency",
+            on_conflict="run_id,product,frequency,pais_codigo,industria,flujo",
         )
         print(f"[EDA] upsert eda_metrics: {n_metrics} filas")
 

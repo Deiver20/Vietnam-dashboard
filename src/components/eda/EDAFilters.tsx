@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 interface EDAFiltersProps {
@@ -15,8 +14,6 @@ interface EDAFiltersProps {
   selectedMonth: number | null;
   onMonthChange: (month: number | null) => void;
   availableYears: number[];
-  frequency: ForecastFrequency;
-  onFrequencyChange: (freq: ForecastFrequency) => void;
   loading?: boolean;
 }
 
@@ -44,8 +41,6 @@ export function EDAFilters({
   selectedMonth,
   onMonthChange,
   availableYears,
-  frequency,
-  onFrequencyChange,
   loading,
 }: EDAFiltersProps) {
   const locale = useDashboard((s) => s.locale);
@@ -73,7 +68,7 @@ export function EDAFilters({
         </button>
       </div>
       <div id="eda-filters-panel" className={`${mobileOpen ? "block" : "hidden"} mt-4 md:block`}>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 md:gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
         <div>
           <label className="block text-[11px] text-gray-4 uppercase tracking-wider font-semibold mb-1.5">
             {t.eda.product}
@@ -133,38 +128,6 @@ export function EDAFilters({
               </option>
             ))}
           </select>
-        </div>
-
-        <div>
-          <label className="block text-[11px] text-gray-4 uppercase tracking-wider font-semibold mb-1.5">
-            {t.eda.frequency}
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onFrequencyChange("D")}
-              disabled={loading}
-              className={`flex-1 px-3 py-2 text-sm rounded-sm border transition-all ${
-                frequency === "D"
-                  ? "bg-blue/20 border-blue text-white"
-                  : "bg-navy-darker border-navy-line text-gray-3 hover:border-blue/50"
-              }`}
-            >
-              {t.eda.daily}
-            </button>
-            <button
-              type="button"
-              onClick={() => onFrequencyChange("M")}
-              disabled={loading}
-              className={`flex-1 px-3 py-2 text-sm rounded-sm border transition-all ${
-                frequency === "M"
-                  ? "bg-blue/20 border-blue text-white"
-                  : "bg-navy-darker border-navy-line text-gray-3 hover:border-blue/50"
-              }`}
-            >
-              {t.eda.monthly}
-            </button>
-          </div>
         </div>
       </div>
       </div>

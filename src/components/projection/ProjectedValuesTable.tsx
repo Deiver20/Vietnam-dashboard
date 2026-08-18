@@ -1,9 +1,11 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { ForecastPoint, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { formatNumber } from "@/app/lib/functions/formatters";
+import { HintIcon } from "@/components/ui/HintIcon";
 import { Loader2 } from "lucide-react";
 
 interface ProjectedValuesTableProps {
@@ -31,9 +33,17 @@ function formatDate(dateStr: string, frequency: "D" | "M"): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function ProjectedValuesTable({ points, loading, frequency }: ProjectedValuesTableProps) {
+export const ProjectedValuesTable = memo(function ProjectedValuesTable({ points, loading, frequency }: ProjectedValuesTableProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+
+  const projected = useMemo(
+    () =>
+      points
+        .filter((p) => p.model === "Ensemble" && !p.is_historical)
+        .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date)),
+    [points]
+  );
 
   if (loading && points.length === 0) {
     return (
@@ -43,10 +53,6 @@ export function ProjectedValuesTable({ points, loading, frequency }: ProjectedVa
       </div>
     );
   }
-
-  const projected = points
-    .filter((p) => p.model === "Ensemble" && !p.is_historical)
-    .sort((a, b) => a.forecast_date.localeCompare(b.forecast_date));
 
   if (projected.length === 0) {
     return (
@@ -58,7 +64,10 @@ export function ProjectedValuesTable({ points, loading, frequency }: ProjectedVa
 
   return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-5 flex flex-col">
-      <h3 className="text-sm font-semibold text-white mb-3">{t.projection.projectedValues}</h3>
+      <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
+        {t.projection.projectedValues}
+        <HintIcon text={t.projection.projectedValuesHint} />
+      </h3>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -91,4 +100,4 @@ export function ProjectedValuesTable({ points, loading, frequency }: ProjectedVa
       </div>
     </div>
   );
-}
+});

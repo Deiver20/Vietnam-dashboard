@@ -1,4 +1,4 @@
-"""Script independiente: solo descarga external features de Yahoo Finance y los guarda en Supabase."""
+"""Script independiente: solo descarga external features de Yahoo Finance y los guarda en REAM."""
 from __future__ import annotations
 
 import sys
@@ -10,15 +10,13 @@ load_dotenv(ROOT / ".env")
 
 sys.path.insert(0, str(ROOT))
 
-from pipeline.compute_external import compute_and_store_external
-from pipeline.upsert_supabase import get_client
+from pipeline.compute_external import compute_and_store_external  # noqa: E402
+from pipeline.upsert_ream import get_conn  # noqa: E402
 
-print("[POPULATE_EXTERNAL] Conectando a Supabase...")
-client = get_client()
+print("[POPULATE_EXTERNAL] Conectando a REAM...")
+conn = get_conn()
+conn.close()
 print("[POPULATE_EXTERNAL] Descargando features de Yahoo Finance...")
-n = compute_and_store_external(client)
+n = compute_and_store_external()
 
 print(f"\n[POPULATE_EXTERNAL] Completado — {n} filas en external_features")
-
-resp = client.table("external_features").select("count", count="exact", head=True).execute()
-print(f"[POPULATE_EXTERNAL] Total en tabla: {resp.count} filas")

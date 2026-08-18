@@ -61,7 +61,13 @@ export function ByProductView() {
     const list: ByProductRow[] = Array.isArray(datos) && datos.length > 0 && "years" in datos[0]
       ? flattenComparatives(datos as ByProductComparative[])
       : (datos as ByProductRow[]);
+    // Muestra todos los productos del año A (aunque no existan en el año B,
+    // que queda en 0). Así un año incompleto no oculta la data del año completo.
+    const yearASet = new Set(
+      list.filter(d => d.year === yearA && d.volumenKg > 0).map(d => d.producto)
+    );
     return topByVolume
+      .filter(p => yearASet.has(p.producto))
       .map(p => {
         const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
         const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
@@ -71,7 +77,7 @@ export function ByProductView() {
           [String(yearB)]: rowB?.volumenKg ?? 0,
         };
       })
-      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
+      .filter(d => (d[String(yearA)] as number) > 0);
   }, [datos, topByVolume, yearA, yearB]);
 
   const priceData = useMemo(() => {
@@ -79,7 +85,11 @@ export function ByProductView() {
     const list: ByProductRow[] = Array.isArray(datos) && datos.length > 0 && "years" in datos[0]
       ? flattenComparatives(datos as ByProductComparative[])
       : (datos as ByProductRow[]);
+    const yearASet = new Set(
+      list.filter(d => d.year === yearA && d.volumenKg > 0).map(d => d.producto)
+    );
     return topByPrice
+      .filter(p => yearASet.has(p.producto))
       .map(p => {
         const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
         const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
@@ -89,7 +99,7 @@ export function ByProductView() {
           [String(yearB)]: rowB?.precioUsd ?? 0,
         };
       })
-      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
+      .filter(d => (d[String(yearA)] as number) > 0);
   }, [datos, topByPrice, yearA, yearB]);
 
   const volumeSeries = useMemo(() => [

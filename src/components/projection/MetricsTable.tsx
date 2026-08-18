@@ -1,9 +1,11 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { ForecastMetric, ForecastModel } from "@/app/interfaces/trade/projection";
 import { formatNumber } from "@/app/lib/functions/formatters";
+import { HintIcon } from "@/components/ui/HintIcon";
 import { Loader2 } from "lucide-react";
 
 interface MetricsTableProps {
@@ -19,9 +21,19 @@ const MODEL_COLORS: Record<ForecastModel, string> = {
   Ensemble: "#FF5C5C",
 };
 
-export function MetricsTable({ metrics, loading }: MetricsTableProps) {
+export const MetricsTable = memo(function MetricsTable({ metrics, loading }: MetricsTableProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+
+  const sorted = useMemo(
+    () =>
+      [...metrics].sort((a, b) => {
+        const aR = a.rmse ?? Infinity;
+        const bR = b.rmse ?? Infinity;
+        return aR - bR;
+      }),
+    [metrics]
+  );
 
   if (loading && metrics.length === 0) {
     return (
@@ -40,15 +52,12 @@ export function MetricsTable({ metrics, loading }: MetricsTableProps) {
     );
   }
 
-  const sorted = [...metrics].sort((a, b) => {
-    const aR = a.rmse ?? Infinity;
-    const bR = b.rmse ?? Infinity;
-    return aR - bR;
-  });
-
   return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-5 flex flex-col">
-      <h3 className="text-sm font-semibold text-white mb-3">{t.projection.metricsTable}</h3>
+      <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-1.5">
+        {t.projection.metricsTable}
+        <HintIcon text={t.projection.metricsTableHint} />
+      </h3>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
@@ -62,7 +71,7 @@ export function MetricsTable({ metrics, loading }: MetricsTableProps) {
           </thead>
           <tbody>
             {sorted.map((m, i) => (
-              <tr key={`${m.model}-${i}`} className="border-b border-navy-line/50 hover:bg-navy-mid/40">
+              <tr key={m.model} className="border-b border-navy-line/50 hover:bg-navy-mid/40">
                 <td className="py-2 px-2">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ background: MODEL_COLORS[m.model] }} />
@@ -87,4 +96,4 @@ export function MetricsTable({ metrics, loading }: MetricsTableProps) {
       </div>
     </div>
   );
-}
+});

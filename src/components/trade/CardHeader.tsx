@@ -14,11 +14,13 @@ const fontQ = "var(--font-poppins), Poppins, sans-serif";
 export function CardHeader({
   title,
   subtitle,
+  subtitleColor,
   actions,
   theme,
 }: {
   title?: ReactNode;
   subtitle?: string;
+  subtitleColor?: string;
   actions?: ReactNode;
   theme?: TradeTheme;
 }) {
@@ -40,7 +42,10 @@ export function CardHeader({
           </h3>
         ) : null}
         {subtitle ? (
-          <p className="mt-1 text-xs leading-relaxed" style={{ fontFamily: fontQ, color: T.textMuted }}>
+          <p
+            className="mt-1 text-xs leading-relaxed"
+            style={{ fontFamily: fontQ, color: subtitleColor ?? T.textMuted }}
+          >
             {subtitle}
           </p>
         ) : null}

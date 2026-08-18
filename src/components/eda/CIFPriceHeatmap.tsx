@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
@@ -23,9 +24,69 @@ function colorScale(value: number, min: number, max: number): string {
   return `rgba(${r}, ${g}, ${b}, 0.85)`;
 }
 
-export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHeatmapProps) {
+function useHeatmap(data: EDASeriesPoint[]) {
+  return useMemo(() => {
+    const grid = new Map<string, number[]>();
+    const allKeys = new Set<string>();
+    for (const p of data) {
+      if (p.cif_price === null) continue;
+      const year = p.date.slice(0, 4);
+      const month = p.date.slice(5, 7);
+      const key = `${year}-${month}`;
+      allKeys.add(key);
+      if (!grid.has(p.product)) grid.set(p.product, []);
+      grid.get(p.product)!.push(Number(p.cif_price));
+    }
+
+    const productAvg: { product: string; avg: number }[] = [];
+    grid.forEach((arr, product) => {
+      productAvg.push({ product, avg: arr.reduce((a, b) => a + b, 0) / arr.length });
+    });
+    const sortedProducts = productAvg.sort((a, b) => b.avg - a.avg).map((p) => p.product);
+
+    const yearMonthMap = new Map<string, { sum: number; count: number }>();
+    for (const p of data) {
+      if (p.cif_price === null) continue;
+      const year = p.date.slice(0, 4);
+      const month = p.date.slice(5, 7);
+      const key = `${year}-${month}`;
+      const cur = yearMonthMap.get(key) || { sum: 0, count: 0 };
+      cur.sum += Number(p.cif_price);
+      cur.count += 1;
+      yearMonthMap.set(key, cur);
+    }
+
+    const sortedKeys = Array.from(allKeys).sort();
+    const yearsSet = new Set(sortedKeys.map((k) => k.slice(0, 4)));
+    const years = Array.from(yearsSet).filter((y) => parseInt(y) >= 2022).sort();
+    const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+
+    const matrix: (number | null)[][] = years.map(() => months.map(() => null));
+    const allValues: number[] = [];
+    sortedKeys.forEach((k) => {
+      const year = k.slice(0, 4);
+      const month = k.slice(5, 7);
+      const yi = years.indexOf(year);
+      const mi = months.indexOf(month);
+      if (yi < 0 || mi < 0) return;
+      const v = yearMonthMap.get(k);
+      if (v) {
+        matrix[yi][mi] = v.sum / v.count;
+        allValues.push(matrix[yi][mi]!);
+      }
+    });
+    const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
+    const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
+
+    return { years, months, matrix, minVal, maxVal, sortedProducts };
+  }, [data]);
+}
+
+export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHeatmapProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+
+  const { years, months, matrix, minVal, maxVal, sortedProducts } = useHeatmap(data);
 
   if (loading && data.length === 0) {
     return (
@@ -36,65 +97,13 @@ export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHe
     );
   }
 
-  if (data.length === 0 || productsAvailable.length === 0) {
+  if (data.length === 0 || productsAvailable.length === 0 || years.length === 0) {
     return (
       <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
   }
-
-  const grid = new Map<string, number[]>();
-  const allKeys = new Set<string>();
-  for (const p of data) {
-    if (p.cif_price === null) continue;
-    const year = p.date.slice(0, 4);
-    const month = p.date.slice(5, 7);
-    const key = `${year}-${month}`;
-    allKeys.add(key);
-    if (!grid.has(p.product)) grid.set(p.product, []);
-    grid.get(p.product)!.push(Number(p.cif_price));
-  }
-
-  const productAvg: { product: string; avg: number }[] = [];
-  grid.forEach((arr, product) => {
-    productAvg.push({ product, avg: arr.reduce((a, b) => a + b, 0) / arr.length });
-  });
-  const sortedProducts = productAvg.sort((a, b) => b.avg - a.avg).map((p) => p.product);
-
-  const yearMonthMap = new Map<string, { sum: number; count: number }>();
-  for (const p of data) {
-    if (p.cif_price === null) continue;
-    const year = p.date.slice(0, 4);
-    const month = p.date.slice(5, 7);
-    const key = `${year}-${month}`;
-    const cur = yearMonthMap.get(key) || { sum: 0, count: 0 };
-    cur.sum += Number(p.cif_price);
-    cur.count += 1;
-    yearMonthMap.set(key, cur);
-  }
-
-  const sortedKeys = Array.from(allKeys).sort();
-  const yearsSet = new Set(sortedKeys.map((k) => k.slice(0, 4)));
-  const years = Array.from(yearsSet).filter((y) => parseInt(y) >= 2022).sort();
-  const months = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
-
-  const matrix: (number | null)[][] = years.map(() => months.map(() => null));
-  let allValues: number[] = [];
-  sortedKeys.forEach((k) => {
-    const year = k.slice(0, 4);
-    const month = k.slice(5, 7);
-    const yi = years.indexOf(year);
-    const mi = months.indexOf(month);
-    if (yi < 0 || mi < 0) return;
-    const v = yearMonthMap.get(k);
-    if (v) {
-      matrix[yi][mi] = v.sum / v.count;
-      allValues.push(matrix[yi][mi]!);
-    }
-  });
-  const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
-  const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
 
   return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
@@ -160,4 +169,4 @@ export function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHe
       )}
     </div>
   );
-}
+});

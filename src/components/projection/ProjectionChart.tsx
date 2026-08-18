@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { ForecastPoint, ForecastModel } from "@/app/interfaces/trade/projection";
@@ -47,11 +48,58 @@ function formatXAxis(v: string, frequency: "D" | "M"): string {
   return v.slice(5);
 }
 
-export function ProjectionChart({ points, loading, frequency, product }: ProjectionChartProps) {
+function useProjectionChartData(points: ForecastPoint[]) {
+  return useMemo(() => {
+    const allDates = Array.from(new Set(points.map((p) => p.forecast_date))).sort();
+
+    const byDateModel = new Map<string, Map<string, ForecastPoint>>();
+    for (const p of points) {
+      if (!byDateModel.has(p.forecast_date)) byDateModel.set(p.forecast_date, new Map());
+      byDateModel.get(p.forecast_date)!.set(p.model, p);
+    }
+
+    const ensembleByDate = new Map<string, ForecastPoint>();
+    for (const p of points) {
+      if (p.model === "Ensemble") ensembleByDate.set(p.forecast_date, p);
+    }
+
+    const modelOrder: ForecastModel[] = ["ARIMA", "Prophet", "XGBoost", "CatBoost", "Ensemble"];
+
+    const chartData = allDates.map((date) => {
+      const row: Record<string, string | number | [number, number] | null> = { date };
+      const ens = ensembleByDate.get(date);
+      if (ens) {
+        row.Ensemble = ens.point_forecast;
+        if (ens.lower_bound !== null && ens.upper_bound !== null) {
+          row.EnsembleBand = [Number(ens.lower_bound), Number(ens.upper_bound)];
+        }
+        if (ens.actual_value !== null && ens.actual_value !== undefined) {
+          row.actual = ens.actual_value;
+        }
+      }
+      const modelsForDate = byDateModel.get(date);
+      if (modelsForDate) {
+        for (const model of modelOrder) {
+          const mp = modelsForDate.get(model);
+          if (mp) row[model] = mp.point_forecast;
+        }
+      }
+      return row;
+    });
+
+    return { chartData, modelOrder };
+  }, [points]);
+}
+
+export const ProjectionChart = memo(function ProjectionChart({ points, loading, frequency, product }: ProjectionChartProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
+
+  const { chartData, modelOrder } = useProjectionChartData(points);
+  const xAxisFormatter = useCallback((v: string) => formatXAxis(v, frequency), [frequency]);
+  const tooltipLabelFormatter = useCallback((label: unknown) => formatXAxis(String(label), frequency), [frequency]);
 
   if (loading && points.length === 0) {
     return (
@@ -69,43 +117,6 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
       </div>
     );
   }
-
-  const allDates = Array.from(new Set(points.map((p) => p.forecast_date))).sort();
-
-  const byDateModel: Map<string, Map<string, ForecastPoint>> = new Map();
-  for (const p of points) {
-    if (!byDateModel.has(p.forecast_date)) byDateModel.set(p.forecast_date, new Map());
-    byDateModel.get(p.forecast_date)!.set(p.model, p);
-  }
-
-  const ensembleByDate = new Map<string, ForecastPoint>();
-  for (const p of points) {
-    if (p.model === "Ensemble") ensembleByDate.set(p.forecast_date, p);
-  }
-
-  const modelOrder: ForecastModel[] = ["ARIMA", "Prophet", "XGBoost", "CatBoost", "Ensemble"];
-
-  const chartData = allDates.map((date) => {
-    const row: Record<string, string | number | [number, number] | null> = { date };
-    const ens = ensembleByDate.get(date);
-    if (ens) {
-      row.Ensemble = ens.point_forecast;
-      if (ens.lower_bound !== null && ens.upper_bound !== null) {
-        row.EnsembleBand = [Number(ens.lower_bound), Number(ens.upper_bound)];
-      }
-      if (ens.actual_value !== null && ens.actual_value !== undefined) {
-        row.actual = ens.actual_value;
-      }
-    }
-    const modelsForDate = byDateModel.get(date);
-    if (modelsForDate) {
-      for (const model of modelOrder) {
-        const mp = modelsForDate.get(model);
-        if (mp) row[model] = mp.point_forecast;
-      }
-    }
-    return row;
-  });
 
   return (
     <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,460px)] flex flex-col">
@@ -129,14 +140,14 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
               dataKey="date"
               stroke={pal.axis}
               fontSize={10}
-              tickFormatter={(v: string) => formatXAxis(v, frequency)}
+              tickFormatter={xAxisFormatter}
               minTickGap={32}
             />
             <YAxis stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => formatCIFPrice(v)} />
             <Tooltip
               contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
               labelStyle={{ color: pal.tooltipLabel }}
-              labelFormatter={(label) => formatXAxis(label as string, frequency)}
+              labelFormatter={tooltipLabelFormatter}
               formatter={(v, name) => {
                 const label = String(name ?? "");
                 if (Array.isArray(v)) {
@@ -146,7 +157,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
               }}
             />
             <Legend wrapperStyle={{ fontSize: 10, color: pal.legend }} />
-            <Area type="monotone" dataKey="EnsembleBand" name={`Ensemble ${t.projection.p10}-${t.projection.p90}`} stroke="none" fill="url(#ensemble-band)" />
+            <Area type="monotone" dataKey="EnsembleBand" name={`Ensemble ${t.projection.p10}-${t.projection.p90}`} stroke="none" fill="url(#ensemble-band)" isAnimationActive={false} />
             {modelOrder.map((m) => (
               <Line
                 key={m}
@@ -158,6 +169,7 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
                 dot={false}
                 connectNulls
                 strokeDasharray={m === "Ensemble" ? undefined : "4 3"}
+                isAnimationActive={false}
               />
             ))}
           </ComposedChart>
@@ -165,4 +177,4 @@ export function ProjectionChart({ points, loading, frequency, product }: Project
       </div>
     </div>
   );
-}
+});

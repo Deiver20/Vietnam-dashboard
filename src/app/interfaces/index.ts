@@ -32,6 +32,12 @@ export interface Translation {
     countriesDetailed: string;
     importsByCountry: string;
     importsOperations: string;
+    exportsOverview: string;
+    totalExports: string;
+    exportsByProduct: string;
+    exportsTimeline: string;
+    exportsByCountry: string;
+    exportsOperations: string;
     priceProjection: string;
     dashboardPages: string;
     comingSoon: string;
@@ -43,6 +49,13 @@ export interface Translation {
     cifPriceDistribution: string;
     cifPriceHeatmap: string;
     cifPriceRolling: string;
+    cifPriceCandles: string;
+    candleOpen: string;
+    candleHigh: string;
+    candleLow: string;
+    candleClose: string;
+    candleHint: string;
+    volume: string;
     cifPriceMetrics: string;
     externalFeatures: string;
     externalFeaturesExplainer: string;
@@ -70,6 +83,7 @@ export interface Translation {
     externalFx: string;
     externalCorn: string;
     externalSoy: string;
+    externalCif: string;
     noData: string;
     noDataHint: string;
     avgCorrelation: string;
@@ -108,6 +122,12 @@ export interface Translation {
     confidenceMedium: string;
     confidenceLow: string;
     uncertainty: string;
+    uncertaintyHint: string;
+    bandHint: string;
+    ensemblePrecisionHint: string;
+    modelComparisonHint: string;
+    metricsTableHint: string;
+    projectedValuesHint: string;
     projectedVariation: string;
     projectedValues: string;
     date: string;
@@ -122,6 +142,7 @@ export interface Translation {
     title: string;
     category: string;
     countryOfOrigin: string;
+    countryOfDestination: string;
     product: string;
     custom: string;
     importer: string;
@@ -148,13 +169,17 @@ export interface Translation {
     chartImportsByCountry: string;
     chartImportsByCountryRace: string;
     chartImportsByImporterRace: string;
+    chartExportsByCountryRace: string;
+    chartExportsByImporterRace: string;
     chartVolumeMt: string;
     chartVolumeMtRace: string;
     noData: string;
     totalImportsChart: string;
+    totalExportsChart: string;
     cifPriceAvg: string;
     volumeMt: string;
     priceCif: string;
+    priceFob: string;
     volume: string;
   };
   panel: {

@@ -24,7 +24,7 @@ import { OperationsView } from "@/components/trade/views/OperationsView";
 import { TradeThemeProvider, lightTheme, darkTheme } from "@/components/trade/TradeThemeContext";
 import { useIndustriesStore } from "../stores";
 import { VARIABLES } from "./dataCarousel";
-import { DASHBOARD_YEAR_RANGE } from "@/app/constants";
+import { DASHBOARD_YEAR_RANGE, getMinYearForCountry } from "@/app/constants";
 
 interface IndustriesTabContentProps {
   tabId: string;
@@ -55,9 +55,11 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
   const flowAccent =
     VARIABLES.find((v) => v.key === (dataType ?? "imports"))?.color ?? "#F35959";
 
-  // Este dashboard solo cubre la variable IMPORTS. Si el usuario entra por
-  // otra variable (production, pricing, exports…), no hay data que mostrar.
-  const isImports = (dataType ?? "imports") === "imports";
+  // Este dashboard cubre las variables IMPORTS y EXPORTS (flujos de comercio).
+  // Otras variables (production, pricing, trade_volumes, event, project) no tienen
+  // data que mostrar aquí.
+  const supportedFlow =
+    (dataType ?? "imports") === "imports" || (dataType ?? "imports") === "exports";
 
   // Sincroniza el país/industria/flujo del shell hacia los filtros del
   // dashboard. Al cambiar de país se limpian los filtros de alcance para que
@@ -67,9 +69,9 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
   useEffect(() => {
     const countryCode = getPaisCode(selectedCountryId);
     const industry = getIndustryCode(selectedIndustryId);
-    const flow: Flow = "imports";
+    const flow: Flow = dataType === "exports" ? "exports" : "imports";
     setFilters((prev) => {
-      const countryChanged = prev.countryCode !== countryCode;
+      const countryChanged = prev.countryCode !== countryCode || prev.flow !== flow;
       const base = { ...prev, countryCode, industry, flow };
       if (!countryChanged) return base;
       return {
@@ -128,7 +130,7 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
     : { ...lightTheme, accent: flowAccent };
 
   const content = (() => {
-    if (!isImports) {
+    if (!supportedFlow) {
       return (
         <div
           className="flex h-[360px] items-center justify-center rounded-xl border px-6 text-center"
@@ -139,7 +141,7 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
               No data available for {dataType ?? "imports"}
             </p>
             <p className="mt-1 text-xs" style={{ color: theme.textMuted }}>
-              This dashboard only covers IMPORTS for this country.
+              This dashboard only covers IMPORTS and EXPORTS for this country.
             </p>
           </div>
         </div>
@@ -151,7 +153,7 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <ImportsByCountryChart
               filters={filters}
-              title={t.dashboard.chartImportsByCountryRace}
+              title={dataType === "exports" ? t.dashboard.chartExportsByCountryRace : t.dashboard.chartImportsByCountryRace}
               subtitle={t.dashboard.chartVolumeMtRace}
               locale={locale}
               interval={filters.animationSpeed ?? 1500}
@@ -159,7 +161,7 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
             />
             <ImportsByImporterChart
               filters={filters}
-              title={t.dashboard.chartImportsByImporterRace}
+              title={dataType === "exports" ? t.dashboard.chartExportsByImporterRace : t.dashboard.chartImportsByImporterRace}
               subtitle={t.dashboard.chartVolumeMtRace}
               locale={locale}
               interval={filters.animationSpeed ?? 1500}
@@ -211,7 +213,11 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
       >
         <div className="mb-4 min-w-0 sm:mb-6">
           {!isPriceProjection && (
-            <GlobalFilters options={options} showMonthFilter={tabId !== "imports-overview"} />
+            <GlobalFilters
+              options={options}
+              showMonthFilter={tabId !== "imports-overview"}
+              minYear={getMinYearForCountry(filters.countryCode)}
+            />
           )}
         </div>
         {content}

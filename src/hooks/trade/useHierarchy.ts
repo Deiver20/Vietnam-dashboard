@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, HierarchyRow, HierarchyMetric, HierarchyDimension, TradeApiResponse } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { translateCountry, translateProduct, translateCategory } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -21,6 +22,7 @@ export function useHierarchy(dimensions: HierarchyDimension[], metric: Hierarchy
   fetcher: (f: TradeFilters) => Promise<HierarchyRow[]>;
 } {
   const filters = useDashboard((s) => s.filters);
+  const locale = useDashboard((s) => s.locale);
   const f = filters;
   const effective = useMemo<TradeFilters>(() => {
     const base: TradeFilters = {
@@ -42,8 +44,13 @@ export function useHierarchy(dimensions: HierarchyDimension[], metric: Hierarchy
     const q = buildTradeQueryString(ff);
     const dims = dimensions.join(",");
     const res = await fetchJson<TradeApiResponse<HierarchyRow[]>>(`/trade/hierarchy${q}${q ? "&" : "?"}dimensions=${encodeURIComponent(dims)}&metric=${metric}&limit=500`);
-    return res.data || [];
-  }, [dimensions, metric]);
+    return (res.data || []).map((row) => ({
+      ...row,
+      country: translateCountry(row.country, locale),
+      producto: translateProduct(row.producto, locale),
+      categoria: translateCategory(row.categoria, locale),
+    }));
+  }, [dimensions, metric, locale]);
 
   return { filters: effective, fetcher };
 }

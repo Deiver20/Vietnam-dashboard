@@ -1,45 +1,52 @@
-"""Detección de nueva data y carga desde Supabase."""
+"""Detección de nueva data y carga desde REAM (agmdatabase)."""
 from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any
 
 import pandas as pd
-from supabase import Client
 
-from .upsert_supabase import fetch_last_run, fetch_pending_runs, update_run_status
+from .upsert_ream import fetch_last_run, fetch_pending_runs, update_run_status
 
 
 def load_trade_records(
-    client: Client,
     *,
     pais_codigo: str = "VIE",
     industria: str = "Rend",
     flujo: str = "Imp",
     page_size: int = 5000,
 ) -> pd.DataFrame:
-    """Carga trade_records_enriquecido de Vietnam/Rend/Import desde Supabase (paginando)."""
+    """Carga trade_records_enriquecido de un país/industria/flujo desde REAM (paginando)."""
+    import psycopg2
+    import psycopg2.extras
+    from .ream_client import get_conn
+
     rows: list[dict] = []
     start = 0
-    while True:
-        resp = (
-            client.table("trade_records_enriquecido")
-            .select("fecha,volumen_mt,cif_total,producto_final,pais_codigo,industria,flujo")
-            .eq("pais_codigo", pais_codigo)
-            .eq("industria", industria)
-            .eq("flujo", flujo)
-            .not_.is_("fecha", "null")
-            .order("fecha", desc=False)
-            .range(start, start + page_size - 1)
-            .execute()
-        )
-        batch = resp.data or []
-        if not batch:
-            break
-        rows.extend(batch)
-        if len(batch) < page_size:
-            break
-        start += page_size
+    conn = get_conn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            while True:
+                cur.execute(
+                    """
+                    SELECT fecha, volumen_mt, cif_total, producto_final, pais_codigo, industria, flujo
+                    FROM public.trade_records_enriquecido
+                    WHERE pais_codigo = %s AND industria = %s AND flujo = %s
+                      AND fecha IS NOT NULL
+                    ORDER BY fecha ASC
+                    LIMIT %s OFFSET %s
+                    """,
+                    (pais_codigo, industria, flujo, page_size, start),
+                )
+                batch = [dict(r) for r in cur.fetchall()]
+                if not batch:
+                    break
+                rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                start += page_size
+    finally:
+        conn.close()
 
     df = pd.DataFrame(rows)
     if df.empty:
@@ -55,6 +62,44 @@ def load_trade_records(
 
     df = df[df["fecha"] >= pd.Timestamp("2022-01-01")].reset_index(drop=True)
     return df
+
+
+def fetch_scopes(activo: bool = True, min_rows: int = 500) -> list[dict]:
+    """Devuelve las combinaciones país/industria/flujo a procesar.
+
+    Se derivan de los datos reales en trade_records_enriquecido (la fuente de
+    verdad) con datos desde 2022, para que cualquier país cargado se procese sin
+    depender de configuración manual. Se filtran scopes con muy pocas filas.
+    """
+    from .ream_client import get_conn
+    import psycopg2
+    import psycopg2.extras
+
+    conn = get_conn()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT pais_codigo, industria, flujo, COUNT(*) AS n
+                FROM public.trade_records_enriquecido
+                WHERE fecha >= '2022-01-01' AND fecha IS NOT NULL
+                GROUP BY pais_codigo, industria, flujo
+                HAVING COUNT(*) >= %s
+                ORDER BY pais_codigo, industria, flujo
+                """,
+                (min_rows,),
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+    scopes: list[dict] = []
+    for r in rows:
+        key = (r.get("pais_codigo"), r.get("industria"), r.get("flujo"))
+        if not all(key):
+            continue
+        scopes.append({"pais_codigo": key[0], "industria": key[1], "flujo": key[2]})
+    return scopes
 
 
 def apply_powerbi_filter(df: pd.DataFrame) -> pd.DataFrame:
@@ -80,11 +125,11 @@ def data_through_date(df: pd.DataFrame) -> date | None:
     return df["fecha"].max().date()
 
 
-def needs_new_run(client: Client, current_max_date: date | None) -> bool:
-    """Devuelve True si hay un forecast_runs 'success' más viejo que current_max_date."""
+def needs_new_run(current_max_date: date | None, scope: dict[str, str]) -> bool:
+    """Devuelve True si hay un forecast_runs 'success' más viejo que current_max_date para el scope."""
     if current_max_date is None:
         return False
-    last = fetch_last_run(client, status="success")
+    last = fetch_last_run(status="success", scope=scope)
     if last is None:
         return True
     last_data_through = last.get("data_through")
@@ -98,18 +143,18 @@ def needs_new_run(client: Client, current_max_date: date | None) -> bool:
     return current_max_date > last_data_through
 
 
-def claim_next_run(client: Client) -> dict | None:
-    """Toma el siguiente forecast_runs 'pending' y lo marca 'running'. Devuelve el row o None."""
-    pending = fetch_pending_runs(client)
+def claim_next_run(scope: dict[str, str]) -> dict | None:
+    """Toma el siguiente forecast_runs 'pending' del scope y lo marca 'running'. Devuelve el row o None."""
+    pending = fetch_pending_runs(scope=scope)
     if not pending:
         return None
     run = pending[0]
-    update_run_status(client, run["id"], status="running", started_at=datetime.utcnow().isoformat())
+    update_run_status(run["id"], status="running", started_at=datetime.utcnow().isoformat())
     run["status"] = "running"
     return run
 
 
-def get_run_products(client: Client, run: dict) -> list[str]:
+def get_run_products(run: dict) -> list[str]:
     """Devuelve la lista de productos a procesar. Por defecto: los del run o 13 hardcodeados."""
     if run.get("products"):
         return run["products"]

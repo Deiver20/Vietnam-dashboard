@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { ForecastPoint, ForecastFrequency } from "@/app/interfaces/trade/projection";
@@ -28,9 +29,61 @@ interface LastVsProjectedProps {
   horizon: number;
 }
 
-export function LastVsProjected({ points, loading, frequency, horizon }: LastVsProjectedProps) {
+function useLastVsProjected(points: ForecastPoint[]) {
+  return useMemo(() => {
+    const ensemble = points.filter((p) => p.model === "Ensemble");
+    const sorted = [...ensemble].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date));
+    const historical = sorted.filter((p) => p.is_historical && p.actual_value !== null);
+    const lastHistorical = historical.length > 0 ? historical[historical.length - 1] : undefined;
+    const lastProjected = sorted[sorted.length - 1];
+
+    const lastActual = lastHistorical?.actual_value ?? null;
+    const projectedEnd = lastProjected?.point_forecast ?? null;
+    const p10End = lastProjected?.lower_bound ?? null;
+    const p90End = lastProjected?.upper_bound ?? null;
+
+    let change = 0;
+    let changePct = 0;
+    if (lastActual !== null && projectedEnd !== null && lastActual !== 0) {
+      change = projectedEnd - lastActual;
+      changePct = (change / lastActual) * 100;
+    }
+
+    const Icon = changePct > 0.5 ? ArrowUpRight : changePct < -0.5 ? ArrowDownRight : Minus;
+    const variant: "blue" | "green" | "yellow" = changePct > 0.5 ? "yellow" : changePct < -0.5 ? "green" : "blue";
+
+    return {
+      lastActual,
+      projectedEnd,
+      p10End,
+      p90End,
+      change,
+      changePct,
+      Icon,
+      variant,
+      lastHistoricalDate: lastHistorical?.forecast_date,
+      lastProjectedDate: lastProjected?.forecast_date,
+    };
+  }, [points]);
+}
+
+export const LastVsProjected = memo(function LastVsProjected({ points, loading, frequency, horizon }: LastVsProjectedProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const {
+    lastActual,
+    projectedEnd,
+    p10End,
+    p90End,
+    change,
+    changePct,
+    Icon,
+    variant,
+    lastHistoricalDate,
+    lastProjectedDate,
+  } = useLastVsProjected(points);
+
+  const projectedLabel = `${t.projection.projectedEnd}${horizon}${frequency === "M" ? "m" : "d"}`;
 
   if (loading && points.length === 0) {
     return (
@@ -49,42 +102,19 @@ export function LastVsProjected({ points, loading, frequency, horizon }: LastVsP
     );
   }
 
-  const ensemble = points.filter((p) => p.model === "Ensemble");
-  const sorted = [...ensemble].sort((a, b) => a.forecast_date.localeCompare(b.forecast_date));
-  const historical = sorted.filter((p) => p.is_historical && p.actual_value !== null);
-  const lastHistorical = historical.length > 0 ? historical[historical.length - 1] : undefined;
-  const lastProjected = sorted[sorted.length - 1];
-
-  const lastActual = lastHistorical?.actual_value ?? null;
-  const projectedEnd = lastProjected?.point_forecast ?? null;
-  const p10End = lastProjected?.lower_bound ?? null;
-  const p90End = lastProjected?.upper_bound ?? null;
-
-  let change = 0;
-  let changePct = 0;
-  if (lastActual !== null && projectedEnd !== null && lastActual !== 0) {
-    change = projectedEnd - lastActual;
-    changePct = (change / lastActual) * 100;
-  }
-
-  const Icon = changePct > 0.5 ? ArrowUpRight : changePct < -0.5 ? ArrowDownRight : Minus;
-  const variant = changePct > 0.5 ? "yellow" : changePct < -0.5 ? "green" : "blue";
-
-  const projectedLabel = `${t.projection.projectedEnd}${horizon}${frequency === "M" ? "m" : "d"}`;
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <KpiCard
         label={t.projection.lastActual}
         value={lastActual !== null ? formatCIFPrice(lastActual) : "-"}
-        sub={formatSubDate(lastHistorical?.forecast_date)}
+        sub={formatSubDate(lastHistoricalDate)}
         icon={<Target className="w-4 h-4" />}
         variant="blue"
       />
       <KpiCard
         label={projectedLabel}
         value={projectedEnd !== null ? formatCIFPrice(projectedEnd) : "-"}
-        sub={formatSubDate(lastProjected?.forecast_date)}
+        sub={formatSubDate(lastProjectedDate)}
         icon={<Target className="w-4 h-4" />}
         variant="blue"
       />
@@ -99,9 +129,10 @@ export function LastVsProjected({ points, loading, frequency, horizon }: LastVsP
         label={`${t.projection.p10} – ${t.projection.p90}`}
         value={p10End !== null && p90End !== null ? `${formatCIFPrice(p10End)} – ${formatCIFPrice(p90End)}` : "-"}
         sub={p10End !== null && p90End !== null ? `± ${formatCIFPrice((p90End - p10End) / 2)}` : undefined}
+        hint={t.projection.bandHint}
         icon={<Target className="w-4 h-4" />}
         variant="yellow"
       />
     </div>
   );
-}
+});

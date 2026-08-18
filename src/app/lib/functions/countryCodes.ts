@@ -1,3 +1,5 @@
+import { getCountryISO } from "@/app/lib/i18n/tradeData";
+
 const countryToCode: Record<string, string> = {
   argentina: "AR",
   australia: "AU",
@@ -91,5 +93,7 @@ const countryToCode: Record<string, string> = {
 export function getCountryCode(country?: string | null): string | null {
   if (!country) return null;
   const normalized = country.trim().toLowerCase();
-  return countryToCode[normalized] || null;
+  const direct = countryToCode[normalized];
+  if (direct) return direct;
+  return getCountryISO(country);
 }

@@ -4,9 +4,16 @@ import { useState, useRef, useEffect, useMemo, useCallback, useId } from "react"
 import { createPortal } from "react-dom";
 import { ChevronDown, X, Check, Search } from "lucide-react";
 
+interface SelectOption {
+  label: string;
+  value: string;
+}
+
+type OptionValue = string | SelectOption;
+
 interface SearchableSelectProps {
   label: string;
-  options: string[];
+  options: OptionValue[];
   value: string | string[];
   onChange: (value: string | string[]) => void;
   placeholder?: string;
@@ -44,6 +51,9 @@ export function SearchableSelect({
   const baseId = useId();
   const listboxId = `${baseId}-listbox`;
 
+  const optValue = (o: OptionValue) => (typeof o === "string" ? o : o.value);
+  const optLabel = (o: OptionValue) => (typeof o === "string" ? o : o.label);
+
   const selectedValues = useMemo(() => {
     if (multiple) return Array.isArray(value) ? value : [];
     return value ? [value as string] : [];
@@ -54,7 +64,7 @@ export function SearchableSelect({
   const filteredOptions = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) return options;
-    return options.filter((option) => option.toLowerCase().includes(term));
+    return options.filter((option) => optLabel(option).toLowerCase().includes(term));
   }, [options, search]);
 
   const visibleOptions = useMemo(
@@ -140,17 +150,18 @@ export function SearchableSelect({
   };
 
   const handleSelect = useCallback(
-    (option: string) => {
+    (option: OptionValue) => {
+      const val = optValue(option);
       if (multiple) {
         const current = Array.isArray(value) ? value : [];
-        const normalizedOption = option.toLowerCase();
+        const normalizedOption = val.toLowerCase();
         const existingIndex = current.findIndex(v => v.toLowerCase() === normalizedOption);
         const updated = existingIndex >= 0
           ? current.filter((_, i) => i !== existingIndex)
-          : [...current, option];
+          : [...current, val];
         onChange(updated);
       } else {
-        onChange(option);
+        onChange(val);
         setOpen(false);
         setSearch("");
         setVisibleCount(VISIBLE_COUNT);
@@ -178,15 +189,20 @@ export function SearchableSelect({
     }
   }, [filteredOptions.length]);
 
-  const isSelected = (option: string) =>
-    selectedValues.some((v) => v.toLowerCase() === option.toLowerCase());
+  const isSelected = (option: OptionValue) =>
+    selectedValues.some((v) => v.toLowerCase() === optValue(option).toLowerCase());
+
+  const labelOfValue = (v: string): string => {
+    const match = options.find((o) => optValue(o).toLowerCase() === v.toLowerCase());
+    return match ? optLabel(match) : v;
+  };
 
   const displayValue = useMemo(() => {
     if (selectedValues.length === 0) return placeholder;
-    if (!multiple) return selectedValues[0];
-    if (selectedValues.length === 1) return selectedValues[0];
-    return `${selectedValues[0]} +${selectedValues.length - 1}`;
-  }, [selectedValues, multiple, placeholder]);
+    if (!multiple) return labelOfValue(selectedValues[0]);
+    if (selectedValues.length === 1) return labelOfValue(selectedValues[0]);
+    return `${labelOfValue(selectedValues[0])} +${selectedValues.length - 1}`;
+  }, [selectedValues, multiple, placeholder, options]);
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
@@ -284,7 +300,7 @@ export function SearchableSelect({
               <>
                 {visibleOptions.map((option) => (
                   <button
-                    key={option}
+                    key={optValue(option)}
                     type="button"
                     role="option"
                     aria-selected={isSelected(option)}
@@ -317,8 +333,8 @@ export function SearchableSelect({
                         )}
                       </span>
                     )}
-                    <span className="truncate" title={option}>
-                      {option}
+                    <span className="truncate" title={optLabel(option)}>
+                      {optLabel(option)}
                     </span>
                   </button>
                 ))}

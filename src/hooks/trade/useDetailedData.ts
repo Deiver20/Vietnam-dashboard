@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, DetailedTradeResponse, TradeApiResponse } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { translateCountry, translateProduct, translateCategory } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -21,6 +22,7 @@ export function useDetailedData(): {
   fetcher: (f: TradeFilters, extra?: { limit?: number; offset?: number }) => Promise<DetailedTradeResponse>;
 } {
   const filters = useDashboard((s) => s.filters);
+  const locale = useDashboard((s) => s.locale);
   const f = filters;
   const effective = useMemo<TradeFilters>(() => ({
     flow: f.flow, category: f.category, product: f.product, originCountry: f.originCountry,
@@ -36,8 +38,17 @@ export function useDetailedData(): {
     if (extra?.offset != null) parts.push(`offset=${extra.offset}`);
     const query = parts.filter(Boolean).join("&");
     const res = await fetchJson<TradeApiResponse<DetailedTradeResponse>>(`/trade/detailed${query ? `?${query}` : ""}`);
-    return res.data || { rows: [], total: 0, truncated: false, appliedRange: { yearStart: ff.yearStart ?? 0, yearEnd: ff.yearEnd ?? 0 } };
-  }, []);
+    const data = res.data || { rows: [], total: 0, truncated: false, appliedRange: { yearStart: ff.yearStart ?? 0, yearEnd: ff.yearEnd ?? 0 } };
+    return {
+      ...data,
+      rows: (data.rows || []).map((row) => ({
+        ...row,
+        paisOrigen: translateCountry(row.paisOrigen, locale),
+        producto: translateProduct(row.producto, locale),
+        categoria: translateCategory(row.categoria, locale),
+      })),
+    };
+  }, [locale]);
 
   return { filters: effective, fetcher };
 }

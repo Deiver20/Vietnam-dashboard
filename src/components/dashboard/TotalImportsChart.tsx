@@ -34,6 +34,8 @@ const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 export function TotalImportsChart({ data, loading, error }: TotalImportsChartProps) {
   const { locale } = useDashboard();
+  const flow = useDashboard((s) => s.filters.flow);
+  const isExports = flow === "exports";
   const t = getTranslation(locale);
   const [metric, setMetric] = useState<MetricType>("price");
   const { ref: cardRef, light } = useScopeLight();
@@ -112,7 +114,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
         style={{ backgroundColor: "var(--trade-accent)" }}
       />
       <CardHeader
-        title={t.dashboard.totalImportsChart}
+        title={isExports ? t.dashboard.totalExportsChart : t.dashboard.totalImportsChart}
         actions={
           <div className="flex flex-wrap gap-1 bg-navy-darker rounded-sm border border-navy-line overflow-hidden p-0.5">
             <button
@@ -125,7 +127,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
                   : "text-gray-3 hover:text-white"
               }`}
             >
-              {t.dashboard.priceCif}
+              {isExports ? t.dashboard.priceFob : t.dashboard.priceCif}
             </button>
             <button
               type="button"

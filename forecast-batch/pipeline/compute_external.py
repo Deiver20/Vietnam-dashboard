@@ -6,18 +6,16 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-from supabase import Client
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from src.data_external import EXTERNAL_TICKERS, fetch_external_features  # noqa: E402
 
-from .upsert_supabase import upsert
+from .upsert_ream import upsert
 
 
 def compute_and_store_external(
-    client: Client,
     *,
     start_date: date | None = None,
 ) -> int:
@@ -43,6 +41,6 @@ def compute_and_store_external(
     df = df.dropna(subset=["date"]).reset_index(drop=True)
 
     rows = df.to_dict(orient="records")
-    print(f"[EXTERNAL] {len(rows)} filas → upsert a Supabase")
-    n = upsert(client, "external_features", rows, on_conflict="date")
+    print(f"[EXTERNAL] {len(rows)} filas → upsert a REAM")
+    n = upsert("external_features", rows, on_conflict="date")
     return n

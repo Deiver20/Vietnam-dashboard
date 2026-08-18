@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { TradeFilterOptions } from "@/app/interfaces/trade/interface";
@@ -9,19 +9,34 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { YearRangeFilter } from "@/components/filters/YearRangeFilter";
 import { MonthFilter } from "@/components/filters/MonthFilter";
 import { ChevronDown, Filter, RotateCcw } from "lucide-react";
+import { translateCountry, translateProduct, translateCategory } from "@/app/lib/i18n/tradeData";
 
 interface GlobalFiltersProps {
   options: TradeFilterOptions;
   showMonthFilter?: boolean;
+  minYear?: number;
 }
 
-export function GlobalFilters({ options, showMonthFilter = true }: GlobalFiltersProps) {
+/* Mapea una lista de valores crudos (de la BD) a opciones { label, value }
+   para que el dropdown muestre el nombre traducido pero guarde el valor crudo
+   que entiende el backend. */
+function toSelectOptions(raw: string[], translate: (v: string) => string) {
+  return raw.map((v) => ({ label: translate(v), value: v }));
+}
+
+export function GlobalFilters({ options, showMonthFilter = true, minYear: minYearProp }: GlobalFiltersProps) {
   const { locale, filters, setFilters, resetFilters } = useDashboard();
   const t = getTranslation(locale);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const minYear = DASHBOARD_YEAR_RANGE.min;
+  const categoryOptions = useMemo(() => toSelectOptions(options.categories, (v) => translateCategory(v, locale)), [options.categories, locale]);
+  const productOptions = useMemo(() => toSelectOptions(options.products, (v) => translateProduct(v, locale)), [options.products, locale]);
+  const originCountryOptions = useMemo(() => toSelectOptions(options.originCountries, (v) => translateCountry(v, locale)), [options.originCountries, locale]);
+
+  const minYear = minYearProp ?? DASHBOARD_YEAR_RANGE.min;
   const maxYear = DASHBOARD_YEAR_RANGE.max;
+  const countryLabel =
+    filters.flow === "exports" ? t.filters.countryOfDestination : t.filters.countryOfOrigin;
   const activeCount = [
     filters.category?.length,
     filters.product?.length,
@@ -72,7 +87,7 @@ export function GlobalFilters({ options, showMonthFilter = true }: GlobalFilters
           label={t.filters.category}
           placeholder={t.filters.all}
           searchPlaceholder={t.filters.search}
-          options={options.categories}
+          options={categoryOptions}
           value={filters.category?.[0] || ""}
           onChange={(value) =>
             setFilters({ ...filters, category: value ? [value as string] : [] })
@@ -83,17 +98,17 @@ export function GlobalFilters({ options, showMonthFilter = true }: GlobalFilters
           label={t.filters.product}
           placeholder={t.filters.all}
           searchPlaceholder={t.filters.search}
-          options={options.products}
+          options={productOptions}
           value={filters.product || []}
           onChange={(value) => setFilters({ ...filters, product: value as string[] })}
           multiple
         />
 
         <SearchableSelect
-          label={t.filters.countryOfOrigin}
+          label={countryLabel}
           placeholder={t.filters.all}
           searchPlaceholder={t.filters.search}
-          options={options.originCountries}
+          options={originCountryOptions}
           value={filters.originCountry || []}
           onChange={(value) =>
             setFilters({ ...filters, originCountry: value as string[] })

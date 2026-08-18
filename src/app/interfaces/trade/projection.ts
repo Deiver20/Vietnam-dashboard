@@ -17,6 +17,9 @@ export interface ForecastRun {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+  pais_codigo?: string;
+  industria?: string;
+  flujo?: string;
 }
 
 export interface EDASeriesPoint {
@@ -35,6 +38,22 @@ export interface EDASeriesPoint {
   rolling_std_m: number | null;
   rolling_std_l: number | null;
   refreshed_at: string;
+  pais_codigo?: string;
+  industria?: string;
+  flujo?: string;
+}
+
+export interface EDACandle {
+  product: string;
+  year: number;
+  month: number;
+  date: string;
+  open_price: number | null;
+  high_price: number | null;
+  low_price: number | null;
+  close_price: number | null;
+  volume_mt: number | null;
+  transactions: number | null;
 }
 
 export interface EDAMetric {
@@ -54,6 +73,9 @@ export interface EDAMetric {
   correlation_cif_corn: number | null;
   correlation_cif_soy: number | null;
   refreshed_at: string;
+  pais_codigo?: string;
+  industria?: string;
+  flujo?: string;
 }
 
 export interface ForecastPoint {
@@ -69,6 +91,9 @@ export interface ForecastPoint {
   upper_bound: number | null;
   is_historical: boolean;
   actual_value: number | null;
+  pais_codigo?: string;
+  industria?: string;
+  flujo?: string;
 }
 
 export interface ForecastMetric {
@@ -82,11 +107,15 @@ export interface ForecastMetric {
   mae: number | null;
   mape: number | null;
   weight: number | null;
+  pais_codigo?: string;
+  industria?: string;
+  flujo?: string;
 }
 
 export interface ExternalFeature {
   id: number;
   date: string;
+  cif_price: number | null;
   fx_usdvnd: number | null;
   corn_fut: number | null;
   soymeal_fut: number | null;

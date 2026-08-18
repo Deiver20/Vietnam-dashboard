@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TradeFilters } from "@/app/interfaces/trade/interface";
-import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { buildFilterOptionsQuery } from "@/app/lib/trade/query";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -39,7 +39,7 @@ export function useTotalImportsMonthly(
       setError(null);
 
       try {
-        const query = buildTradeQueryString(filters);
+        const query = buildFilterOptionsQuery(filters);
         const response = await fetch(`${API_BASE}/trade/total-imports/monthly${query}`);
 
         if (!response.ok) {

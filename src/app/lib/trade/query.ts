@@ -1,13 +1,6 @@
-import { TradeFilters, ALLOWED_PRODUCTS } from "@/app/interfaces/trade/interface";
+import { TradeFilters } from "@/app/interfaces/trade/interface";
 
-export function getEffectiveProducts(filters: TradeFilters): string[] {
-  if (filters.product && filters.product.length > 0) {
-    return filters.product;
-  }
-  return ALLOWED_PRODUCTS;
-}
-
-function buildQueryStringFromFilters(filters: TradeFilters, useDefaults: boolean): string {
+function buildQueryStringFromFilters(filters: TradeFilters): string {
   const params = new URLSearchParams();
 
   if (filters.countryCode) params.set("countryCode", filters.countryCode);
@@ -17,12 +10,7 @@ function buildQueryStringFromFilters(filters: TradeFilters, useDefaults: boolean
     params.set("category", filters.category.join(","));
   }
 
-  if (useDefaults) {
-    const products = getEffectiveProducts(filters);
-    if (products.length > 0) {
-      params.set("product", products.join(","));
-    }
-  } else if (filters.product && filters.product.length > 0) {
+  if (filters.product && filters.product.length > 0) {
     params.set("product", filters.product.join(","));
   }
 
@@ -48,13 +36,22 @@ function buildQueryStringFromFilters(filters: TradeFilters, useDefaults: boolean
 }
 
 export function buildTradeQueryString(filters: TradeFilters): string {
-  return buildQueryStringFromFilters(filters, true);
+  return buildQueryStringFromFilters(filters);
 }
 
 export function buildFilterOptionsQuery(filters: TradeFilters): string {
-  return buildQueryStringFromFilters(filters, false);
+  return buildQueryStringFromFilters(filters);
 }
 
-export function buildFiltersAllQuery(_filters: TradeFilters): string {
-  return "";
+/* Query para el endpoint filters-all: incluye solo el scope
+   (país/industria/flujo) para que las opciones de filtro se limiten a la
+   combinación actual. Los filtros activos no se pasan aquí porque se quieren
+   TODAS las opciones del scope. */
+export function buildFiltersAllQuery(filters: TradeFilters): string {
+  const params = new URLSearchParams();
+  if (filters.countryCode) params.set("countryCode", filters.countryCode);
+  if (filters.industry) params.set("industry", filters.industry);
+  if (filters.flow) params.set("flow", filters.flow);
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }

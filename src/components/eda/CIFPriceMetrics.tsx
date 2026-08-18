@@ -1,22 +1,64 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDAMetric } from "@/app/interfaces/trade/projection";
+import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { Loader2, TrendingUp, Activity, BarChart3, Calendar, Hash } from "lucide-react";
+import { Loader2, TrendingUp, Activity, BarChart3, Hash } from "lucide-react";
 import { formatCIFPrice, formatNumber } from "@/app/lib/functions/formatters";
 
 interface CIFPriceMetricsProps {
-  metrics: EDAMetric[];
+  series: EDASeriesPoint[];
   loading: boolean;
 }
 
-export function CIFPriceMetrics({ metrics, loading }: CIFPriceMetricsProps) {
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+function stddev(values: number[]): number {
+  const m = mean(values);
+  if (values.length < 2) return 0;
+  const variance = values.reduce((acc, v) => acc + (v - m) ** 2, 0) / (values.length - 1);
+  return Math.sqrt(variance);
+}
+
+function useMetrics(series: EDASeriesPoint[]) {
+  return useMemo(() => {
+    const minYear = new Date().getUTCFullYear() - 2;
+    const visible = series.filter((p) => parseInt(p.date.slice(0, 4), 10) >= minYear);
+    const source = visible.length > 0 ? visible : series;
+
+    const prices = source
+      .map((p) => p.cif_price)
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
+
+    if (prices.length === 0) return null;
+
+    const current = prices[prices.length - 1];
+    const avg = mean(prices);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const cv = avg > 0 ? stddev(prices) / avg : 0;
+    const dataPoints = source.reduce((acc, p) => acc + (p.transactions ?? 0), 0);
+    const latestDate = source
+      .map((p) => p.date)
+      .filter(Boolean)
+      .sort()
+      .reverse()[0];
+
+    return { current, avg, min, max, cv, dataPoints, latestDate };
+  }, [series]);
+}
+
+export const CIFPriceMetrics = memo(function CIFPriceMetrics({ series, loading }: CIFPriceMetricsProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const metrics = useMetrics(series);
 
-  if (loading && metrics.length === 0) {
+  if (loading && series.length === 0) {
     return (
       <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[180px] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -25,7 +67,7 @@ export function CIFPriceMetrics({ metrics, loading }: CIFPriceMetricsProps) {
     );
   }
 
-  if (metrics.length === 0) {
+  if (!metrics) {
     return (
       <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[180px] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
@@ -33,74 +75,45 @@ export function CIFPriceMetrics({ metrics, loading }: CIFPriceMetricsProps) {
     );
   }
 
-  const agg = metrics.reduce(
-    (acc, m) => {
-      if (m.current_price !== null) {
-        acc.current += m.current_price;
-        acc.currentCount += 1;
-      }
-      if (m.mean_price !== null) {
-        acc.mean += m.mean_price;
-        acc.meanCount += 1;
-      }
-      if (m.min_price !== null) acc.min = Math.min(acc.min, m.min_price);
-      if (m.max_price !== null) acc.max = Math.max(acc.max, m.max_price);
-      if (m.volatility !== null) {
-        acc.vol += m.volatility;
-        acc.volCount += 1;
-      }
-      if (m.data_points !== null) acc.dp += m.data_points;
-      return acc;
-    },
-    { current: 0, currentCount: 0, mean: 0, meanCount: 0, min: Infinity, max: -Infinity, vol: 0, volCount: 0, dp: 0 }
-  );
-
-  const currentAvg = agg.currentCount > 0 ? agg.current / agg.currentCount : null;
-  const meanAvg = agg.meanCount > 0 ? agg.mean / agg.meanCount : null;
-  const volAvg = agg.volCount > 0 ? agg.vol / agg.volCount : null;
-  const latestDate = metrics
-    .map((m) => m.last_date)
-    .filter((d): d is string => Boolean(d))
-    .sort()
-    .reverse()[0];
+  const { current, avg, min, max, cv, dataPoints, latestDate } = metrics;
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-5 h-[180px] flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-5 flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceMetrics}</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 flex-1">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           label={t.eda.currentPrice}
-          value={currentAvg !== null ? formatCIFPrice(currentAvg) : "-"}
+          value={formatCIFPrice(current)}
           icon={<TrendingUp className="w-4 h-4" />}
           variant="blue"
         />
         <KpiCard
           label={t.eda.meanPrice}
-          value={meanAvg !== null ? formatCIFPrice(meanAvg) : "-"}
+          value={formatCIFPrice(avg)}
           icon={<BarChart3 className="w-4 h-4" />}
           variant="green"
         />
         <KpiCard
           label={t.eda.minPrice}
-          value={agg.min === Infinity ? "-" : formatCIFPrice(agg.min)}
+          value={formatCIFPrice(min)}
           icon={<Activity className="w-4 h-4" />}
           variant="yellow"
         />
         <KpiCard
           label={t.eda.maxPrice}
-          value={agg.max === -Infinity ? "-" : formatCIFPrice(agg.max)}
+          value={formatCIFPrice(max)}
           icon={<Activity className="w-4 h-4" />}
           variant="yellow"
         />
         <KpiCard
           label={t.eda.volatility}
-          value={volAvg !== null ? `${(volAvg * 100).toFixed(1)}%` : "-"}
+          value={`${(cv * 100).toFixed(1)}%`}
           icon={<TrendingUp className="w-4 h-4" />}
           variant="blue"
         />
         <KpiCard
           label={t.eda.dataPoints}
-          value={formatNumber(agg.dp)}
+          value={formatNumber(dataPoints)}
           sub={latestDate ? `${t.eda.lastUpdate}: ${latestDate}` : undefined}
           icon={<Hash className="w-4 h-4" />}
           variant="blue"
@@ -108,4 +121,4 @@ export function CIFPriceMetrics({ metrics, loading }: CIFPriceMetricsProps) {
       </div>
     </div>
   );
-}
+});

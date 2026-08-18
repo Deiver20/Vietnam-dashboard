@@ -10,7 +10,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from dateutil.relativedelta import relativedelta
-from supabase import Client
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -23,7 +22,7 @@ from src.models.prophet_model import ProphetModel  # noqa: E402
 from src.models.xgboost_model import XGBoostModel  # noqa: E402
 from src.features import build_all_features  # noqa: E402
 
-from .upsert_supabase import upsert
+from .upsert_ream import upsert
 
 warnings.filterwarnings("ignore")
 
@@ -148,13 +147,16 @@ def _rmse_mae_mape(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[float, float
 
 
 def _forecast_for_product_freq(
-    client: Client,
     run_id: str,
     df: pd.DataFrame,
     ext: pd.DataFrame,
     product: str,
     freq: str,
     horizons: list[int],
+    *,
+    pais_codigo: str = "VIE",
+    industria: str = "Rend",
+    flujo: str = "Imp",
 ) -> dict:
     """Corre los 4 modelos + ensemble para un (product, freq). Retorna conteos."""
     s = _build_product_series(df, product, freq, ext)
@@ -195,6 +197,9 @@ def _forecast_for_product_freq(
                     "upper_bound": float(row["cif_price"]) if pd.notna(row["cif_price"]) else None,
                     "is_historical": True,
                     "actual_value": float(row["cif_price"]) if pd.notna(row["cif_price"]) else None,
+                    "pais_codigo": pais_codigo,
+                    "industria": industria,
+                    "flujo": flujo,
                 }
             )
 
@@ -234,6 +239,9 @@ def _forecast_for_product_freq(
                             "lower_bound": float(max(lo[i], 0)) if i < len(lo) else None,
                             "upper_bound": float(max(hi[i], 0)) if i < len(hi) else None,
                             "is_historical": False,
+                            "pais_codigo": pais_codigo,
+                            "industria": industria,
+                            "flujo": flujo,
                         }
                     )
             except Exception as e:
@@ -263,6 +271,9 @@ def _forecast_for_product_freq(
                     "mae": m["MAE"] if not np.isnan(m["MAE"]) else None,
                     "mape": m["MAPE"] if not np.isnan(m["MAPE"]) else None,
                     "weight": float(weight_map[model_name]) if model_name in weight_map else None,
+                    "pais_codigo": pais_codigo,
+                    "industria": industria,
+                    "flujo": flujo,
                 }
             )
 
@@ -304,6 +315,9 @@ def _forecast_for_product_freq(
                             "lower_bound": float(max(ens_lo[i], 0)),
                             "upper_bound": float(max(ens_hi[i], 0)),
                             "is_historical": False,
+                            "pais_codigo": pais_codigo,
+                            "industria": industria,
+                            "flujo": flujo,
                         }
                     )
                 ens_rmse, ens_mae, ens_mape = _rmse_mae_mape(actuals, ens_pr[:min_len])
@@ -318,6 +332,9 @@ def _forecast_for_product_freq(
                         "mae": ens_mae,
                         "mape": ens_mape,
                         "weight": 1.0,
+                        "pais_codigo": pais_codigo,
+                        "industria": industria,
+                        "flujo": flujo,
                     }
                 )
 
@@ -325,29 +342,29 @@ def _forecast_for_product_freq(
     n_metrics = 0
     if forecast_results_rows:
         n_results = upsert(
-            client,
             "forecast_results",
             forecast_results_rows,
             on_conflict=None,
         )
     if forecast_metrics_rows:
         n_metrics = upsert(
-            client,
             "forecast_metrics",
             forecast_metrics_rows,
-            on_conflict="run_id,product,frequency,horizon,model",
+            on_conflict="run_id,product,frequency,horizon,model,pais_codigo,industria,flujo",
         )
     return {"results": n_results, "metrics": n_metrics}
 
 
 def compute_and_store_forecast(
-    client: Client,
     run_id: str,
     df: pd.DataFrame,
     ext: pd.DataFrame,
     products: list[str],
     *,
     frequencies: tuple[str, ...] = ("D", "M"),
+    pais_codigo: str = "VIE",
+    industria: str = "Rend",
+    flujo: str = "Imp",
 ) -> dict:
     """Itera sobre (product × freq), entrena, valida, predice, guarda."""
     if df.empty:
@@ -358,7 +375,10 @@ def compute_and_store_forecast(
         for freq in frequencies:
             horizons = HORIZONS_DAILY if freq == "D" else HORIZONS_MONTHLY
             print(f"       · {product} {freq} ({horizons})")
-            counts = _forecast_for_product_freq(client, run_id, df, ext, product, freq, horizons)
+            counts = _forecast_for_product_freq(
+                run_id, df, ext, product, freq, horizons,
+                pais_codigo=pais_codigo, industria=industria, flujo=flujo,
+            )
             total["results"] += counts["results"]
             total["metrics"] += counts["metrics"]
     return total

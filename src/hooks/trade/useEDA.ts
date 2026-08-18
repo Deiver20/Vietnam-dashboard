@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ForecastRun,
   EDASeriesPoint,
+  EDACandle,
   EDAMetric,
   ExternalFeature,
   ForecastPoint,
@@ -27,22 +28,42 @@ export interface LatestRunResult {
   error: string | null;
 }
 
-export function useLatestRun(): LatestRunResult {
+export interface TradeScope {
+  countryCode?: string;
+  industry?: string;
+  flow?: string;
+}
+
+function scopeParams(scope?: TradeScope): URLSearchParams {
+  const params = new URLSearchParams();
+  if (scope?.countryCode) params.set("countryCode", scope.countryCode);
+  if (scope?.industry) params.set("industry", scope.industry);
+  if (scope?.flow) params.set("flow", scope.flow);
+  return params;
+}
+
+export function useLatestRun(scope?: TradeScope, enabled = true): LatestRunResult {
   const [run, setRun] = useState<ForecastRun | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
+      if (!enabled) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
+        const scopeQuery = scopeParams(scope).toString();
+        const qs = scopeQuery ? `&${scopeQuery}` : "";
         const data = await fetchJson<{
           success: boolean;
           data: { run: ForecastRun | null; points: unknown[]; metrics: unknown[]; products: string[] };
-        }>("/trade/forecast/data?frequency=M&horizon=6&runOnly=true");
+        }>(`/trade/forecast/data?frequency=M&horizon=6&runOnly=true${qs}`);
 
         if (cancelled) return;
         setRun(data.data?.run || null);
@@ -57,7 +78,7 @@ export function useLatestRun(): LatestRunResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled, scope?.countryCode, scope?.industry, scope?.flow]);
 
   return { run, loading, error };
 }
@@ -65,6 +86,7 @@ export function useLatestRun(): LatestRunResult {
 export interface EDAData {
   metrics: EDAMetric[];
   series: EDASeriesPoint[];
+  candles: EDACandle[];
   external: ExternalFeature[];
   productsAvailable: string[];
 }
@@ -83,6 +105,7 @@ function extractExternalFeatures(series: EDASeriesPoint[]): ExternalFeature[] {
       result.push({
         id: result.length + 1,
         date: s.date,
+        cif_price: s.cif_price,
         fx_usdvnd: s.fx_usdvnd,
         corn_fut: s.corn_fut,
         soymeal_fut: s.soymeal_fut,
@@ -95,14 +118,23 @@ function extractExternalFeatures(series: EDASeriesPoint[]): ExternalFeature[] {
 export function useEDA(
   product: string,
   year?: number | null,
-  month?: number | null
+  month?: number | null,
+  scope?: TradeScope
 ): UseEDAResult {
   const [metrics, setMetrics] = useState<EDAMetric[]>([]);
   const [series, setSeries] = useState<EDASeriesPoint[]>([]);
+  const [candles, setCandles] = useState<EDACandle[]>([]);
   const [external, setExternal] = useState<ExternalFeature[]>([]);
   const [productsAvailable, setProductsAvailable] = useState<string[]>([]);
+  const [resolvedProduct, setResolvedProduct] = useState<string | null>(
+    product && product !== "all" ? product : null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setResolvedProduct(product && product !== "all" ? product : null);
+  }, [product]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,44 +143,59 @@ export function useEDA(
       setLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams();
-        if (product && product !== "all") params.set("product", product);
-        if (year) params.set("year", String(year));
-        if (month) params.set("month", String(month));
-
         const filtersRes = fetchJson<{
           success: boolean;
           data: { products: string[]; years: number[]; months: number[] };
         }>("/trade/eda/filters");
 
-        // Con "all" solo se necesita la lista de productos; pedir la serie
-        // completa (hasta 50k filas) sin filtro es muy costoso e innecesario.
-        if (product && product !== "all") {
-          const [seriesRes, metricsRes, filtersDone] = await Promise.all([
-            fetchJson<{ success: boolean; data: EDASeriesPoint[] }>(
-              `/trade/eda/series?${params}`
-            ),
-            fetchJson<{ success: boolean; data: EDAMetric[] }>(
-              year ? `/trade/eda/metrics?${params}` : `/trade/eda/metrics?product=${product}`
-            ),
-            filtersRes,
-          ]);
+        const filtersDone = await filtersRes;
+        const available = filtersDone.data?.products || [];
+        if (cancelled) return;
+        setProductsAvailable(available);
 
-          if (cancelled) return;
-
-          const seriesData = seriesRes.data || [];
-          setSeries(seriesData);
-          setMetrics(metricsRes.data || []);
-          setExternal(extractExternalFeatures(seriesData));
-          setProductsAvailable(filtersDone.data?.products || []);
-        } else {
-          const filtersDone = await filtersRes;
-          if (cancelled) return;
+        const target = resolvedProduct ?? available[0] ?? null;
+        if (!target) {
           setSeries([]);
           setMetrics([]);
+          setCandles([]);
           setExternal([]);
-          setProductsAvailable(filtersDone.data?.products || []);
+          setLoading(false);
+          return;
         }
+
+        const params = new URLSearchParams();
+        params.set("product", target);
+        // Los gráficos históricos solo muestran los últimos 3 años: se filtra
+        // en el backend para no bajar la serie completa (hasta 50k filas).
+        const currentYear = new Date().getUTCFullYear();
+        const yearStart = year ?? currentYear - 2;
+        const yearEnd = year ?? currentYear;
+        params.set("yearStart", String(yearStart));
+        params.set("yearEnd", String(yearEnd));
+        if (month) params.set("month", String(month));
+        if (scope?.countryCode) params.set("countryCode", scope.countryCode);
+        if (scope?.industry) params.set("industry", scope.industry);
+        if (scope?.flow) params.set("flow", scope.flow);
+
+        const [seriesRes, metricsRes, candlesRes] = await Promise.all([
+          fetchJson<{ success: boolean; data: EDASeriesPoint[] }>(
+            `/trade/eda/series?${params}`
+          ),
+          fetchJson<{ success: boolean; data: EDAMetric[] }>(
+            `/trade/eda/metrics?${params}`
+          ),
+          fetchJson<{ success: boolean; data: EDACandle[] }>(
+            `/trade/eda/candles?${params}`
+          ),
+        ]);
+
+        if (cancelled) return;
+
+        const seriesData = seriesRes.data || [];
+        setSeries(seriesData);
+        setMetrics(metricsRes.data || []);
+        setCandles(candlesRes.data || []);
+        setExternal(extractExternalFeatures(seriesData));
       } catch (e) {
         if (!cancelled)
           setError(e instanceof Error ? e.message : "Unknown error");
@@ -161,9 +208,9 @@ export function useEDA(
     return () => {
       cancelled = true;
     };
-  }, [product, year, month]);
+  }, [resolvedProduct, year, month, scope?.countryCode, scope?.industry, scope?.flow]);
 
-  return { metrics, series, external, productsAvailable, loading, error };
+  return { metrics, series, candles, external, productsAvailable, loading, error };
 }
 
 export interface ForecastData {
@@ -181,7 +228,9 @@ export function useForecast(
   _run: ForecastRun | null,
   product: string,
   frequency: "D" | "M",
-  horizon: number
+  horizon: number,
+  enabled = true,
+  scope?: TradeScope
 ): UseForecastResult {
   const [points, setPoints] = useState<ForecastPoint[]>([]);
   const [metrics, setMetrics] = useState<ForecastMetric[]>([]);
@@ -193,7 +242,7 @@ export function useForecast(
     let cancelled = false;
 
     async function load() {
-      if (!_run || !product) {
+      if (!enabled || !_run || !product) {
         setPoints([]);
         setMetrics([]);
         setProductsAvailable([]);
@@ -207,6 +256,9 @@ export function useForecast(
         if (product && product !== "all") params.set("product", product);
         params.set("frequency", frequency);
         params.set("horizon", String(horizon));
+        if (scope?.countryCode) params.set("countryCode", scope.countryCode);
+        if (scope?.industry) params.set("industry", scope.industry);
+        if (scope?.flow) params.set("flow", scope.flow);
 
         const { data } = await fetchJson<{
           success: boolean;
@@ -234,7 +286,7 @@ export function useForecast(
     return () => {
       cancelled = true;
     };
-  }, [_run?.id, product, frequency, horizon]);
+  }, [enabled, _run?.id, product, frequency, horizon, scope?.countryCode, scope?.industry, scope?.flow]);
 
   return { points, metrics, productsAvailable, loading, error };
 }

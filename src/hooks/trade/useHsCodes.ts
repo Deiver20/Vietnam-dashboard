@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, HsCodeRow, TradeApiResponse } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { translateCategory, translateProduct } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -21,6 +22,7 @@ export function useHsCodes(): {
   fetcher: (f: TradeFilters) => Promise<HsCodeRow[]>;
 } {
   const filters = useDashboard((s) => s.filters);
+  const locale = useDashboard((s) => s.locale);
   const f = filters;
   const effective = useMemo<TradeFilters>(() => ({
     flow: f.flow, category: f.category, product: f.product, originCountry: f.originCountry,
@@ -32,8 +34,13 @@ export function useHsCodes(): {
   const fetcher = useCallback(async (ff: TradeFilters) => {
     const q = buildTradeQueryString(ff);
     const res = await fetchJson<TradeApiResponse<HsCodeRow[]>>(`/trade/by-hs${q}`);
-    return res.data || [];
-  }, []);
+    return (res.data || []).map((row) => ({
+      ...row,
+      categoria: translateCategory(row.categoria, locale),
+      producto: translateProduct(row.producto, locale),
+      industry: translateCategory(row.industry, locale),
+    }));
+  }, [locale]);
 
   return { filters: effective, fetcher };
 }

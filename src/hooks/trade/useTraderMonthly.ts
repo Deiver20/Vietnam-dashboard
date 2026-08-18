@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, TraderMonthlyBreakdown, TraderType, TradeApiResponse } from "@/app/interfaces/trade/interface";
 import { buildTradeQueryString } from "@/app/lib/trade/query";
+import { translateProduct, translateCategory } from "@/app/lib/i18n/tradeData";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -21,6 +22,7 @@ export function useTraderMonthly(type: TraderType, years: [number, number]): {
   fetcher: (f: TradeFilters) => Promise<TraderMonthlyBreakdown>;
 } {
   const filters = useDashboard((s) => s.filters);
+  const locale = useDashboard((s) => s.locale);
   const f = filters;
   const effective = useMemo<TradeFilters>(() => ({
     flow: f.flow, category: f.category, product: f.product, originCountry: f.originCountry,
@@ -33,8 +35,19 @@ export function useTraderMonthly(type: TraderType, years: [number, number]): {
   const fetcher = useCallback(async (ff: TradeFilters) => {
     const q = buildTradeQueryString(ff);
     const res = await fetchJson<TradeApiResponse<TraderMonthlyBreakdown>>(`/trade/trader-monthly${q}${q ? "&" : "?"}type=${type}`);
-    return res.data || { years: [], months: [], monthKeys: [], rows: [], totals: { registros: 0, volumenKg: 0, valorUsd: 0, monthly: {} } };
-  }, [type]);
+    const data = res.data || { years: [], months: [], monthKeys: [], rows: [], totals: { registros: 0, volumenKg: 0, valorUsd: 0, monthly: {} } };
+    return {
+      ...data,
+      rows: (data.rows || []).map((row) => ({
+        ...row,
+        products: (row.products || []).map((p) => ({
+          ...p,
+          producto: translateProduct(p.producto, locale),
+          categoria: translateCategory(p.categoria, locale),
+        })),
+      })),
+    };
+  }, [type, locale]);
 
   return { filters: effective, fetcher };
 }

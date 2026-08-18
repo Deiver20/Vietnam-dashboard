@@ -7,9 +7,8 @@ import {
   TradeTotalImports,
   TradeTimelineItem,
   TradeFilterOptions,
-  ALLOWED_PRODUCTS,
 } from "@/app/interfaces/trade/interface";
-import { buildTradeQueryString, buildFilterOptionsQuery, buildFiltersAllQuery } from "@/app/lib/trade/query";
+import { buildTradeQueryString, buildFiltersAllQuery } from "@/app/lib/trade/query";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -127,8 +126,7 @@ export function useTradeData(filters: TradeFilters, enabled = true): UseTradeDat
       const newOptions: TradeFilterOptions = { ...EMPTY_OPTIONS };
       if (res.data) {
         newOptions.categories = res.data.category || [];
-        newOptions.products = (res.data.product || [])
-          .filter((p) => ALLOWED_PRODUCTS.some(s => s.toLowerCase() === p.toLowerCase()));
+        newOptions.products = res.data.product || [];
         newOptions.originCountries = res.data.originCountry || [];
         newOptions.customs = res.data.customs || [];
         newOptions.importers = res.data.importer_clean || res.data.importer || [];
