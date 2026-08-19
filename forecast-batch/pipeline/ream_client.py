@@ -54,8 +54,7 @@ def upsert(table: str, rows: Iterable[dict], on_conflict: str | None = None, chu
     if not batch:
         return 0
 
-    columns = [c for c in batch[0].keys() if c != "id"]
-    placeholders = ", ".join(["%s"] * len(columns))
+    columns = [c for c in {k for r in batch for k in r.keys()} if c != "id"]
     col_sql = ", ".join(columns)
 
     if on_conflict:
@@ -68,7 +67,7 @@ def upsert(table: str, rows: Iterable[dict], on_conflict: str | None = None, chu
     else:
         conflict_sql = ""
 
-    sql = f"INSERT INTO public.{table} ({col_sql}) VALUES ({placeholders}){conflict_sql}"
+    sql = f"INSERT INTO public.{table} ({col_sql}) VALUES %s{conflict_sql}"
 
     total = 0
     conn = get_conn()
@@ -76,7 +75,7 @@ def upsert(table: str, rows: Iterable[dict], on_conflict: str | None = None, chu
         with conn.cursor() as cur:
             for i in range(0, len(batch), chunk_size):
                 chunk = batch[i : i + chunk_size]
-                values = [[_to_db_value(r[c]) for c in columns] for r in chunk]
+                values = [[_to_db_value(r.get(c)) for c in columns] for r in chunk]
                 psycopg2.extras.execute_values(cur, sql, values, page_size=chunk_size)
                 total += len(chunk)
         conn.commit()

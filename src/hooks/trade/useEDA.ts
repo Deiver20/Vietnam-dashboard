@@ -147,7 +147,7 @@ export function useEDA(
         const filtersRes = fetchJson<{
           success: boolean;
           data: { products: string[]; years: number[]; months: number[] };
-        }>("/trade/eda/filters");
+        }>(`/trade/eda/filters${scopeParams(scope).toString() ? `?${scopeParams(scope).toString()}` : ""}`);
 
         const filtersDone = await filtersRes;
         const available = (filtersDone.data?.products || []).filter((p) =>

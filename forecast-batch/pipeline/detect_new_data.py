@@ -29,7 +29,7 @@ def load_trade_records(
             while True:
                 cur.execute(
                     """
-                    SELECT fecha, volumen_mt, cif_total, producto_final, pais_codigo, industria, flujo
+                    SELECT fecha, volumen_mt, cif_total, fob_total, producto_final, pais_codigo, industria, flujo
                     FROM public.trade_records_enriquecido
                     WHERE pais_codigo = %s AND industria = %s AND flujo = %s
                       AND fecha IS NOT NULL
@@ -57,8 +57,10 @@ def load_trade_records(
     df = df.rename(columns={"producto_final": "product"})
     df["volumen_mt"] = pd.to_numeric(df["volumen_mt"], errors="coerce")
     df["quantity"] = df["volumen_mt"]
-    df["cif_total"] = pd.to_numeric(df["cif_total"], errors="coerce")
-    df["cif_unit_calc"] = df["cif_total"] / df["quantity"]
+    # Imports valoran en CIF; exports valoran en FOB (cif_total viene NULL en exports).
+    value_col = "fob_total" if flujo == "Exp" else "cif_total"
+    df["value_total"] = pd.to_numeric(df[value_col], errors="coerce")
+    df["cif_unit_calc"] = df["value_total"] / df["quantity"]
 
     df = df[df["fecha"] >= pd.Timestamp("2022-01-01")].reset_index(drop=True)
     return df
