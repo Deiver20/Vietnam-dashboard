@@ -10,6 +10,7 @@ import {
   ForecastPoint,
   ForecastMetric,
 } from "@/app/interfaces/trade/projection";
+import { ALLOWED_PRODUCTS } from "@/app/interfaces/trade/interface";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
@@ -149,7 +150,9 @@ export function useEDA(
         }>("/trade/eda/filters");
 
         const filtersDone = await filtersRes;
-        const available = filtersDone.data?.products || [];
+        const available = (filtersDone.data?.products || []).filter((p) =>
+          ALLOWED_PRODUCTS.includes(p)
+        );
         if (cancelled) return;
         setProductsAvailable(available);
 

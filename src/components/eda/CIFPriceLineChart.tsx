@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
+import { EDASeriesPoint, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
 import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { downsampleTo } from "@/app/lib/functions/array";
@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 interface CIFPriceLineChartProps {
   data: EDASeriesPoint[];
   loading: boolean;
+  frequency: ForecastFrequency;
 }
 
 const COLORS = [
@@ -21,11 +22,14 @@ const COLORS = [
   "#A3E635", "#22D3EE", "#FB923C",
 ];
 
-function useLineChartData(data: EDASeriesPoint[]) {
+function useLineChartData(data: EDASeriesPoint[], frequency: ForecastFrequency) {
   return useMemo(() => {
     const minYear = new Date().getUTCFullYear() - 2;
-    const visible = data.filter((p) => parseInt(p.date.slice(0, 4), 10) >= minYear);
-    const source = visible.length > 0 ? visible : data;
+    const byFreq = data.filter((p) =>
+      frequency === "M" ? p.frequency === "M" : p.frequency !== "M"
+    );
+    const visible = byFreq.filter((p) => parseInt(p.date.slice(0, 4), 10) >= minYear);
+    const source = visible.length > 0 ? visible : byFreq;
 
     const seriesByProduct = new Map<string, { date: string; value: number }[]>();
     for (const p of source) {
@@ -49,16 +53,16 @@ function useLineChartData(data: EDASeriesPoint[]) {
     // Muestrear el eje X para no renderizar miles de puntos SVG.
     const display = downsampleTo(merged, 80);
     return { merged: display, productNames };
-  }, [data]);
+  }, [data, frequency]);
 }
 
-export const CIFPriceLineChart = memo(function CIFPriceLineChart({ data, loading }: CIFPriceLineChartProps) {
+export const CIFPriceLineChart = memo(function CIFPriceLineChart({ data, loading, frequency }: CIFPriceLineChartProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
 
-  const { merged, productNames } = useLineChartData(data);
+  const { merged, productNames } = useLineChartData(data, frequency);
 
   if (loading && data.length === 0) {
     return (

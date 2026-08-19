@@ -8,6 +8,8 @@ import { useTimeline } from "@/hooks/trade/useTimeline";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { MESES, RIBBON_PALETTE, YEAR_PALETTE, getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { translateCountry } from "@/app/lib/i18n/tradeData";
 import { TradeFilters, TimelineResponse } from "@/app/interfaces/trade/interface";
 
 function countryColor(idx: number): string {
@@ -18,6 +20,7 @@ export function TimelineView() {
   const { filters, fetcher } = useTimeline();
   const { datos: data } = useDebouncedFilters<TradeFilters, TimelineResponse>(filters, fetcher);
   const T = useTradeTheme();
+  const locale = useDashboard((s) => s.locale);
 
   const unit = useMemo(() => getUnitLabel(), []);
   const formatters = useMemo(() => makeFormatters(unit), [unit]);
@@ -40,8 +43,8 @@ export function TimelineView() {
 
   const countrySeries = useMemo(() => {
     if (!data) return [];
-    return data.countries.map((c, i) => ({ key: c, nombre: c, color: countryColor(i) }));
-  }, [data]);
+    return data.countries.map((c, i) => ({ key: c, nombre: translateCountry(c, locale), color: countryColor(i) }));
+  }, [data, locale]);
 
   const years = useMemo(() => {
     if (!data) return [] as number[];
@@ -140,6 +143,7 @@ export function TimelineView() {
               series={yearSeries}
               yFormat={formatters.mil}
                altura={360}
+              etiquetasFinales
             />
           )}
         </ChartCard>

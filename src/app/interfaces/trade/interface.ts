@@ -47,11 +47,16 @@ export interface TradeFilters {
 
 export type Flow = "imports" | "exports";
 
+export interface TradeSelectOption {
+  label: string;
+  value: string;
+}
+
 export interface TradeFilterOptions {
   categories: string[];
   products: string[];
   originCountries: string[];
-  customs: string[];
+  customs: Array<string | TradeSelectOption>;
   years: number[];
   importers: string[];
   exporters: string[];
@@ -100,7 +105,7 @@ export const ALLOWED_PRODUCTS = [
 ];
 
 export const DASHBOARD_TABS = [
-  { id: "price-projection", labelKey: "priceProjection" as const, labelTop: "Price", labelBottom: "Projection" },
+  { id: "price-projection", labelKey: "priceProjection" as const, labelTop: "Price", labelBottom: "Trend" },
   { id: "imports-overview", labelKey: "importsOverview" as const, labelTop: "Imports", labelBottom: "Overview" },
   { id: "hs-codes", labelKey: "hsCodes" as const, labelTop: "HS Codes", labelBottom: null },
   { id: "total-imports", labelKey: "totalImports" as const, labelTop: "Total Imports", labelBottom: null },

@@ -151,7 +151,7 @@ export function TradersView() {
           [String(yearB)]: rowB ? rowB[leftMetric] : 0,
         };
       })
-      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
+      .filter(d => (d[String(yearA)] as number) > 0);
   }, [datos, topByLeftMetric, yearA, yearB, leftMetric]);
 
   const rightChartData = useMemo(() => {
@@ -166,7 +166,7 @@ export function TradersView() {
           [String(yearB)]: rowB ? rowB.precioUsd : 0,
         };
       })
-      .filter(d => (d[String(yearA)] as number) > 0 && (d[String(yearB)] as number) > 0);
+      .filter(d => (d[String(yearA)] as number) > 0);
   }, [datos, topByPrice, yearA, yearB]);
 
   const series = useMemo(() => {

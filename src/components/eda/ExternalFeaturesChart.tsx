@@ -1,27 +1,87 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDAMetric, ExternalFeature } from "@/app/interfaces/trade/projection";
+import { EDAMetric, ExternalFeature, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { formatCorrelation, formatUSD } from "@/app/lib/functions/formatters";
 import { cornCentsToUsdPerMt, soymealStToUsdPerMt } from "@/app/lib/functions/unitConversions";
-import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
+import { useScopeLight, chartPalette, ChartPalette } from "@/app/lib/functions/chartPalette";
 import { downsampleTo } from "@/app/lib/functions/array";
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, Maximize2, X } from "lucide-react";
 
 interface ExternalFeaturesChartProps {
   metrics: EDAMetric[];
   external: ExternalFeature[];
   loading: boolean;
+  frequency: ForecastFrequency;
 }
 
-export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metrics, external, loading }: ExternalFeaturesChartProps) {
+interface ChartDatum {
+  date: string;
+  cif: number | null;
+  fx: number | null;
+  corn: number | null;
+  soy: number | null;
+}
+
+function ExternalChart({ data, pal, t, expandable }: {
+  data: ChartDatum[];
+  pal: ChartPalette;
+  t: ReturnType<typeof getTranslation>;
+  expandable: boolean;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={data} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
+        <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
+        <XAxis dataKey="date" stroke={pal.axis} fontSize={expandable ? 12 : 10} minTickGap={32} tickFormatter={(v) => v.slice(0, 7)} />
+        <YAxis yAxisId="left" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => formatUSD(v, 0)} width={expandable ? 70 : 40} />
+        <YAxis yAxisId="right" orientation="right" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => `${v.toFixed(0)} $/MT`} width={expandable ? 90 : 50} />
+        <Tooltip
+          contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
+          labelStyle={{ color: pal.tooltipLabel }}
+          formatter={(v, name) => {
+            const num = v as number;
+            const label = String(name ?? "");
+            if (label.toLowerCase().includes("usd/vnd") || label.toLowerCase().includes("usdvnd")) return [formatUSD(num, 0), label];
+            if (label.toLowerCase().includes("cif")) return [`${num.toFixed(2)} $/MT`, label];
+            if (label && (label.toLowerCase().includes("corn") || label.toLowerCase().includes("soy") || label.toLowerCase().includes("maíz") || label.toLowerCase().includes("soja") || label.toLowerCase().includes("soya") || label.toLowerCase().includes("maïs") || label.toLowerCase().includes("milho") || label.toLowerCase().includes("farelo") || label.toLowerCase().includes("tourteau"))) {
+              return [`${num.toFixed(2)} $/MT`, label];
+            }
+            return [num, label];
+          }}
+        />
+        <Legend wrapperStyle={{ fontSize: expandable ? 12 : 10, color: pal.legend }} />
+        <Bar yAxisId="right" dataKey="corn" name={t.eda.externalCorn} fill="#F5C518" fillOpacity={0.6} isAnimationActive={false} />
+        <Bar yAxisId="right" dataKey="soy" name={t.eda.externalSoy} fill="#00C2A8" fillOpacity={0.6} isAnimationActive={false} />
+        <Line yAxisId="right" type="monotone" dataKey="cif" name={t.eda.externalCif} stroke="#FF5C5C" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+        <Line yAxisId="left" type="monotone" dataKey="fx" name={t.eda.externalFx} stroke="#0066FF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metrics, external, loading, frequency }: ExternalFeaturesChartProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
+  const overlayPal = chartPalette(false);
+  const [expanded, setExpanded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [expanded]);
 
   const chartData = useMemo(() => {
     const mapped = external.map((e) => ({
@@ -31,9 +91,31 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
       corn: e.corn_fut !== null ? cornCentsToUsdPerMt(Number(e.corn_fut)) : null,
       soy: e.soymeal_fut !== null ? soymealStToUsdPerMt(Number(e.soymeal_fut)) : null,
     }));
+    if (frequency === "M") {
+      const map = new Map<string, { cif: number[]; fx: number[]; corn: number[]; soy: number[] }>();
+      for (const d of mapped) {
+        const key = d.date.slice(0, 7);
+        const cur = map.get(key) || { cif: [], fx: [], corn: [], soy: [] };
+        if (d.cif !== null) cur.cif.push(d.cif);
+        if (d.fx !== null) cur.fx.push(d.fx);
+        if (d.corn !== null) cur.corn.push(d.corn);
+        if (d.soy !== null) cur.soy.push(d.soy);
+        map.set(key, cur);
+      }
+      const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      return Array.from(map.entries())
+        .map(([key, v]) => ({
+          date: key,
+          cif: avg(v.cif),
+          fx: avg(v.fx),
+          corn: avg(v.corn),
+          soy: avg(v.soy),
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
     // Reducir densidad de puntos para evitar bloqueo del hilo principal.
     return downsampleTo(mapped, 80);
-  }, [external]);
+  }, [external, frequency]);
 
   const latest = metrics.find((m) => m.product) || metrics[0];
   const fxCorr = latest?.correlation_cif_fx ?? null;
@@ -42,7 +124,7 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
 
   if (loading && external.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,440px)] flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -51,7 +133,7 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
 
   if (chartData.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,440px)] flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
@@ -66,46 +148,76 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
     </span>
   );
 
-  return (
-    <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
-      <h3 className="text-sm font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
-      <p className="text-[10px] text-gray-5 mb-2">{t.eda.externalFeaturesExplainer}</p>
-      {(fxCorr !== null || cornCorr !== null || soyCorr !== null) && (
-        <div className="flex flex-wrap gap-1.5 mb-2">
-          {fxCorr !== null && corrChip(t.eda.corrFx, fxCorr >= 0 ? "#34D399" : "#F87171", fxCorr)}
-          {cornCorr !== null && corrChip(t.eda.corrCorn, cornCorr >= 0 ? "#34D399" : "#F87171", cornCorr)}
-          {soyCorr !== null && corrChip(t.eda.corrSoy, soyCorr >= 0 ? "#34D399" : "#F87171", soyCorr)}
-        </div>
-      )}
-      <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="date" stroke={pal.axis} fontSize={10} minTickGap={32} tickFormatter={(v) => v.slice(0, 7)} />
-            <YAxis yAxisId="left" stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => formatUSD(v, 0)} />
-            <YAxis yAxisId="right" orientation="right" stroke={pal.axis} fontSize={10} tickFormatter={(v: number) => `${v.toFixed(0)} $/MT`} />
-            <Tooltip
-              contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
-              labelStyle={{ color: pal.tooltipLabel }}
-              formatter={(v, name) => {
-                const num = v as number;
-                const label = String(name ?? "");
-                if (label.toLowerCase().includes("usd/vnd") || label.toLowerCase().includes("usdvnd")) return [formatUSD(num, 0), label];
-                if (label.toLowerCase().includes("cif")) return [`${num.toFixed(2)} $/MT`, label];
-                if (label && (label.toLowerCase().includes("corn") || label.toLowerCase().includes("soy") || label.toLowerCase().includes("maíz") || label.toLowerCase().includes("soja") || label.toLowerCase().includes("soya") || label.toLowerCase().includes("maïs") || label.toLowerCase().includes("milho") || label.toLowerCase().includes("farelo") || label.toLowerCase().includes("tourteau"))) {
-                  return [`${num.toFixed(2)} $/MT`, label];
-                }
-                return [num, label];
-              }}
-            />
-            <Legend wrapperStyle={{ fontSize: 10, color: pal.legend }} />
-            <Bar yAxisId="right" dataKey="corn" name={t.eda.externalCorn} fill="#F5C518" fillOpacity={0.6} isAnimationActive={false} />
-            <Bar yAxisId="right" dataKey="soy" name={t.eda.externalSoy} fill="#00C2A8" fillOpacity={0.6} isAnimationActive={false} />
-            <Line yAxisId="right" type="monotone" dataKey="cif" name={t.eda.externalCif} stroke="#FF5C5C" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
-            <Line yAxisId="left" type="monotone" dataKey="fx" name={t.eda.externalFx} stroke="#0066FF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
-          </ComposedChart>
-        </ResponsiveContainer>
+  const header = (
+    <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
+        <p className="text-[10px] text-gray-5">{t.eda.externalFeaturesExplainer}</p>
       </div>
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        aria-label="Ampliar gráfico"
+        className="shrink-0 flex items-center gap-1 rounded-sm border border-navy-line bg-navy-mid px-2 py-1 text-[10px] text-gray-4 hover:text-white hover:border-gray-5 transition-colors"
+      >
+        <Maximize2 className="w-3 h-3" />
+        <span className="hidden sm:inline">Ampliar</span>
+      </button>
     </div>
+  );
+
+  const corrRow = (fxCorr !== null || cornCorr !== null || soyCorr !== null) && (
+    <div className="flex flex-wrap gap-1.5">
+      {fxCorr !== null && corrChip(t.eda.corrFx, fxCorr >= 0 ? "#34D399" : "#F87171", fxCorr)}
+      {cornCorr !== null && corrChip(t.eda.corrCorn, cornCorr >= 0 ? "#34D399" : "#F87171", cornCorr)}
+      {soyCorr !== null && corrChip(t.eda.corrSoy, soyCorr >= 0 ? "#34D399" : "#F87171", soyCorr)}
+    </div>
+  );
+
+  return (
+    <>
+      <div ref={cardRef} className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(340px,72vw,440px)] flex flex-col">
+        {header}
+        {corrRow && <div className="mt-2 mb-2">{corrRow}</div>}
+        <div className="flex-1 min-h-0">
+          <ExternalChart data={chartData} pal={pal} t={t} expandable={false} />
+        </div>
+      </div>
+
+      {expanded && mounted && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-4 sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t.eda.externalFeatures}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setExpanded(false);
+          }}
+        >
+          <div className="relative w-full h-[92vh] bg-navy-card border border-navy-line rounded-lg p-4 sm:p-6 flex flex-col shadow-2xl">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
+                <p className="text-[11px] text-gray-5">{t.eda.externalFeaturesExplainer}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExpanded(false)}
+                aria-label="Cerrar"
+                className="shrink-0 flex items-center gap-1 rounded-sm border border-navy-line bg-navy-mid px-2 py-1 text-[11px] text-gray-4 hover:text-white hover:border-gray-5 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cerrar</span>
+              </button>
+            </div>
+            {corrRow && <div className="mb-3">{corrRow}</div>}
+            <div className="flex-1 min-h-0">
+              <ExternalChart data={chartData} pal={overlayPal} t={t} expandable />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 });

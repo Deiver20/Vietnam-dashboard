@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
+import { EDASeriesPoint, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
 import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -12,11 +12,15 @@ import { Loader2 } from "lucide-react";
 interface CIFPriceDistributionProps {
   data: EDASeriesPoint[];
   loading: boolean;
+  frequency: ForecastFrequency;
 }
 
-function useDistributionBuckets(data: EDASeriesPoint[]) {
+function useDistributionBuckets(data: EDASeriesPoint[], frequency: ForecastFrequency) {
   return useMemo(() => {
-    const values = data.map((p) => p.cif_price).filter((v): v is number => v !== null);
+    const byFreq = data.filter((p) =>
+      frequency === "M" ? p.frequency === "M" : p.frequency !== "M"
+    );
+    const values = byFreq.map((p) => p.cif_price).filter((v): v is number => v !== null);
     if (values.length === 0) return null;
 
     const min = Math.min(...values);
@@ -35,16 +39,16 @@ function useDistributionBuckets(data: EDASeriesPoint[]) {
       buckets[idx].count += 1;
     }
     return buckets;
-  }, [data]);
+  }, [data, frequency]);
 }
 
-export const CIFPriceDistribution = memo(function CIFPriceDistribution({ data, loading }: CIFPriceDistributionProps) {
+export const CIFPriceDistribution = memo(function CIFPriceDistribution({ data, loading, frequency }: CIFPriceDistributionProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
   const pal = chartPalette(light);
 
-  const buckets = useDistributionBuckets(data);
+  const buckets = useDistributionBuckets(data, frequency);
 
   if (loading && data.length === 0) {
     return (

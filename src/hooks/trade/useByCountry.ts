@@ -59,7 +59,7 @@ export function useByCountry(): {
     >();
     for (const t of data.timeline) {
       const country = translateCountry(t.country, locale);
-      const key = `${t.year}-${country}`;
+      const key = `${t.year}-${t.month}-${country}`;
       const current = timelineMap.get(key);
       if (current) {
         current.volumenKg += t.volumenKg;

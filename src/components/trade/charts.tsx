@@ -13,7 +13,7 @@ import { useTradeTheme, lightTheme, type TradeTheme } from "./TradeThemeContext"
 const FONT = "var(--font-poppins), Poppins, sans-serif";
 const lightFallback: TradeTheme = lightTheme;
 
-function niceDomain(values: number[], tickCount = 5, paddingPct = 0.05): [number, number] {
+function niceDomain(values: number[], tickCount = 5, paddingPct = 0.05, bottomExtraPct = 0): [number, number] {
   const finite = values.filter(v => Number.isFinite(v));
   if (finite.length === 0) return [0, 1];
   const min = Math.min(...finite);
@@ -23,7 +23,7 @@ function niceDomain(values: number[], tickCount = 5, paddingPct = 0.05): [number
     return [min - pad, max + pad];
   }
   const range = max - min;
-  const padMin = min - range * paddingPct;
+  const padMin = min - range * paddingPct - range * bottomExtraPct;
   const padMax = max + range * paddingPct;
   const roughStep = (padMax - padMin) / tickCount;
   const exponent = Math.floor(Math.log10(Math.abs(roughStep) || 1));
@@ -190,12 +190,14 @@ export function LineChart<T extends object = Record<string, unknown>>({
       if (!wrap) return;
       const curves = wrap.querySelectorAll(".recharts-line-curve");
       if (curves.length !== series.length) return;
-      const measured = Array.from(curves).map((path, i) => {
-        const p = path as SVGPathElement;
+      const measured: Array<{ key: string; x: number; y: number }> = [];
+      for (let i = 0; i < curves.length; i++) {
+        const p = curves[i] as SVGPathElement;
         const len = p.getTotalLength();
+        if (!Number.isFinite(len) || len <= 0) continue;
         const pt = p.getPointAtLength(len);
-        return { key: series[i].key, x: pt.x, y: pt.y };
-      });
+        measured.push({ key: series[i].key, x: pt.x, y: pt.y });
+      }
       setEnds(prev => {
         const same = prev.length === measured.length && prev.every((e, i) =>
           Math.abs(e.x - measured[i].x) < 0.5 && Math.abs(e.y - measured[i].y) < 0.5 && e.key === measured[i].key);
@@ -203,9 +205,10 @@ export function LineChart<T extends object = Record<string, unknown>>({
       });
     };
     measure();
-    const ro = new ResizeObserver(() => measure());
+    const t = setTimeout(measure, 100);
+    const ro = new ResizeObserver(measure);
     if (wrapRef.current) ro.observe(wrapRef.current);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); clearTimeout(t); };
   }, [datos, series, etiquetasFinales, altura]);
 
   const tickStyle = { fontSize: 11, fill: T.axisText, fontFamily: FONT };
@@ -217,9 +220,10 @@ export function LineChart<T extends object = Record<string, unknown>>({
       if (Number.isFinite(v) && v > 0) allValues.push(v);
     }
   }
-  const [domainMin, domainMax] = niceDomain(allValues);
+  const [domainMin, domainMax] = niceDomain(allValues, 5, 0.05, etiquetasFinales ? 0.16 : 0);
 
   const rightPad = etiquetasFinales ? 120 : 24;
+  const bottomPad = 0;
 
   const pills = useMemo(() => {
     if (!etiquetasFinales || ends.length === 0) return [] as Array<{
@@ -236,28 +240,69 @@ export function LineChart<T extends object = Record<string, unknown>>({
       })
       .filter((x): x is { key: string; nombre: string; color: string; x: number; y: number } => x !== null);
     const sorted = [...items].sort((a, b) => a.y - b.y);
-    const resolved = sorted.map(it => ({ ...it, top: it.y - H / 2, h: H, w: Math.max(44, it.nombre.length * 6.6 + 16), leader: false }));
-    for (let i = 1; i < resolved.length; i++) {
-      const minTop = resolved[i - 1].top + H + GAP;
-      if (resolved[i].top < minTop) resolved[i].top = minTop;
+    const N = sorted.length;
+
+    type Pill = { key: string; nombre: string; color: string; x: number; y: number; top: number; h: number; w: number; leader: boolean };
+    const make = (it: typeof sorted[number]): Pill => ({
+      ...it, top: it.y - H / 2, h: H, w: Math.max(44, it.nombre.length * 6.6 + 16), leader: false,
+    });
+
+    const TOP_LIMIT = 4;
+    const BOTTOM_LIMIT = altura - H - GAP;
+
+    function layout(gap: number): Pill[] {
+      const out = sorted.map(make);
+      if (out[0].top < TOP_LIMIT) out[0].top = TOP_LIMIT;
+      for (let i = 1; i < N; i++) {
+        const desired = sorted[i].y - H / 2;
+        const minRequired = out[i - 1].top + H + gap;
+        out[i].top = Math.max(desired, minRequired);
+      }
+      return out;
     }
+
+    function fits(arr: Pill[]): boolean {
+      return arr.length === 0 || arr[arr.length - 1].top <= BOTTOM_LIMIT;
+    }
+
+    let resolved: Pill[];
+    const natural = layout(GAP);
+    if (fits(natural)) {
+      resolved = natural;
+    } else {
+      let lo = 0;
+      let hi = GAP;
+      for (let iter = 0; iter < 40; iter++) {
+        const mid = (lo + hi) / 2;
+        const trial = layout(mid);
+        if (fits(trial)) lo = mid;
+        else hi = mid;
+        if (hi - lo < 0.05) break;
+      }
+      resolved = layout(lo);
+      if (!fits(resolved) && resolved.length > 0) {
+        resolved[resolved.length - 1].top = BOTTOM_LIMIT;
+      }
+    }
+
     for (const p of resolved) {
       p.leader = Math.abs(p.top - (p.y - H / 2)) > 0.5;
     }
     return resolved;
-  }, [etiquetasFinales, ends, series]);
+  }, [etiquetasFinales, ends, series, altura]);
 
   if (!datos.length) return <EmptyChart altura={altura} />;
 
   return (
     <div ref={wrapRef} className="relative" style={{ width: "100%", height: altura }}>
       <ResponsiveContainer width="100%" height={altura} minWidth={1} minHeight={1}>
-        <ReLineChart data={datos} margin={{ top: 10, right: rightPad, left: 8, bottom: 0 }}>
+        <ReLineChart data={datos} margin={{ top: 10, right: rightPad, left: 8, bottom: bottomPad }}>
           <CartesianGrid strokeDasharray="3 3" stroke={T.axisLine} vertical={false} />
           <XAxis dataKey={xKey} tick={tickStyle} axisLine={{ stroke: T.border }} tickLine={false} />
           <YAxis
             domain={[domainMin, domainMax]}
             allowDataOverflow={false}
+            ticks={etiquetasFinales ? niceTicks(domainMax, 4) : undefined}
             tick={tickStyle}
             axisLine={false}
             tickLine={false}

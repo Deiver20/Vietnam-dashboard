@@ -26,7 +26,6 @@ function colorScale(value: number, min: number, max: number): string {
 
 function useHeatmap(data: EDASeriesPoint[]) {
   return useMemo(() => {
-    const grid = new Map<string, number[]>();
     const allKeys = new Set<string>();
     for (const p of data) {
       if (p.cif_price === null) continue;
@@ -34,15 +33,7 @@ function useHeatmap(data: EDASeriesPoint[]) {
       const month = p.date.slice(5, 7);
       const key = `${year}-${month}`;
       allKeys.add(key);
-      if (!grid.has(p.product)) grid.set(p.product, []);
-      grid.get(p.product)!.push(Number(p.cif_price));
     }
-
-    const productAvg: { product: string; avg: number }[] = [];
-    grid.forEach((arr, product) => {
-      productAvg.push({ product, avg: arr.reduce((a, b) => a + b, 0) / arr.length });
-    });
-    const sortedProducts = productAvg.sort((a, b) => b.avg - a.avg).map((p) => p.product);
 
     const yearMonthMap = new Map<string, { sum: number; count: number }>();
     for (const p of data) {
@@ -78,7 +69,7 @@ function useHeatmap(data: EDASeriesPoint[]) {
     const minVal = allValues.length > 0 ? Math.min(...allValues) : 0;
     const maxVal = allValues.length > 0 ? Math.max(...allValues) : 1;
 
-    return { years, months, matrix, minVal, maxVal, sortedProducts };
+    return { years, months, matrix, minVal, maxVal };
   }, [data]);
 }
 
@@ -86,11 +77,11 @@ export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, pr
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
 
-  const { years, months, matrix, minVal, maxVal, sortedProducts } = useHeatmap(data);
+  const { years, months, matrix, minVal, maxVal } = useHeatmap(data);
 
   if (loading && data.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex-1 min-h-0 flex items-center justify-center text-gray-4">
         <Loader2 className="w-5 h-5 animate-spin mr-2" />
         {t.common.loading}
       </div>
@@ -99,14 +90,14 @@ export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, pr
 
   if (data.length === 0 || productsAvailable.length === 0 || years.length === 0) {
     return (
-      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex items-center justify-center text-gray-4 text-sm">
+      <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex-1 min-h-0 flex items-center justify-center text-gray-4 text-sm">
         {t.eda.noData}
       </div>
     );
   }
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 h-[clamp(300px,72vw,380px)] flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceHeatmap}</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] border-collapse">
@@ -155,18 +146,6 @@ export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, pr
         }} />
         <span>High: {formatCIFPrice(maxVal)}</span>
       </div>
-      {sortedProducts.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-navy-line">
-          <p className="text-[10px] uppercase tracking-wider text-gray-5 mb-1">Avg by product</p>
-          <div className="flex flex-wrap gap-2">
-            {sortedProducts.slice(0, 6).map((p, i) => (
-              <span key={p} className="text-[10px] text-gray-3 px-2 py-0.5 bg-navy-mid rounded-sm">
-                #{i + 1} {p}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 });

@@ -250,7 +250,7 @@ export const CIFPriceCandles = memo(function CIFPriceCandles({ data, loading }: 
       </div>
       <div className="flex-[3] min-h-0 mt-2">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 5, right: 12, left: 0, bottom: 0 }}>
+          <BarChart data={chartData} margin={{ top: 22, right: 12, left: 0, bottom: 0 }}>
             <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
             <XAxis
               dataKey="date"
@@ -264,7 +264,8 @@ export const CIFPriceCandles = memo(function CIFPriceCandles({ data, loading }: 
               domain={[0, maxVol]}
               stroke={pal.axis}
               fontSize={10}
-              width={48}
+              width={56}
+              tickMargin={4}
               tickFormatter={(v: number) => formatVolume(v)}
             />
             <Tooltip

@@ -150,6 +150,7 @@ export interface Translation {
     year: string;
     month: string;
     allMonths: string;
+    months: string[];
     yearStart: string;
     yearEnd: string;
     animationSpeed: string;

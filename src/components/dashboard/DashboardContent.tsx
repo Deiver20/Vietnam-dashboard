@@ -5,6 +5,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { useTradeData } from "@/hooks/trade/useTradeData";
 import { useTotalImportsMonthly } from "@/hooks/trade/useTotalImportsMonthly";
+import { useTabYearDefaults } from "@/hooks/trade/useTabYearDefaults";
 import { GlobalFilters } from "@/components/filters/GlobalFilters";
 import { ImportsByCountryChart } from "@/components/dashboard/ImportsByCountryChart";
 import { ImportsByImporterChart } from "@/components/dashboard/ImportsByImporterChart";
@@ -61,6 +62,10 @@ export function DashboardContent({ tabId }: DashboardContentProps) {
   const useGlobalFilters = TABS_WITH_GLOBAL_FILTERS.has(tabId);
   const useDataPanel = TABS_WITH_DATA_PANEL.has(tabId);
   const isProjectionTab = tabId === "price-projection";
+
+  // Default del rango de años por pestaña (últimos 3 / últimos 5 / completo del
+  // país) — la regla aplica a todos los tableros. Ver `useTabYearDefaults`.
+  useTabYearDefaults(tabId);
 
   // Cada vez que se entra a una pestaña se incrementa su contador; los bar
   // race usan el contador como runKey para arrancar desde el año inicial.

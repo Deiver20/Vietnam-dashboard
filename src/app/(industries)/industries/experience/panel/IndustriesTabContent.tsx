@@ -5,6 +5,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { useTradeData } from "@/hooks/trade/useTradeData";
 import { useTotalImportsMonthly } from "@/hooks/trade/useTotalImportsMonthly";
+import { useTabYearDefaults } from "@/hooks/trade/useTabYearDefaults";
 import { getPaisCode, getIndustryCode } from "@/app/lib/trade/countryMapping";
 import type { Flow } from "@/app/interfaces/trade/interface";
 import { GlobalFilters } from "@/components/filters/GlobalFilters";
@@ -24,7 +25,7 @@ import { OperationsView } from "@/components/trade/views/OperationsView";
 import { TradeThemeProvider, lightTheme, darkTheme } from "@/components/trade/TradeThemeContext";
 import { useIndustriesStore } from "../stores";
 import { VARIABLES } from "./dataCarousel";
-import { DASHBOARD_YEAR_RANGE, getMinYearForCountry } from "@/app/constants";
+import { getMinYearForCountry } from "@/app/constants";
 
 interface IndustriesTabContentProps {
   tabId: string;
@@ -87,33 +88,10 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
     });
   }, [selectedCountryId, selectedIndustryId, dataType, setFilters]);
 
-  // Solo la pestaña "Importaciones Totales" arranca con el filtro de años
-  // reducido a los últimos 3 años (y el slider lo refleja). Al salir de la
-  // pestaña se restaura el rango completo, salvo que el usuario lo haya
-  // modificado manualmente.
-  useEffect(() => {
-    const { yearStart, yearEnd } = useDashboard.getState().filters;
-    const isFullRange =
-      yearStart === DASHBOARD_YEAR_RANGE.min && yearEnd === DASHBOARD_YEAR_RANGE.max;
-    const isLast3 =
-      yearStart === DASHBOARD_YEAR_RANGE.max - 2 && yearEnd === DASHBOARD_YEAR_RANGE.max;
-    if (tabId === "total-imports") {
-      if (isFullRange) {
-        setFilters((prev) => ({
-          ...prev,
-          yearStart: DASHBOARD_YEAR_RANGE.max - 2,
-          yearEnd: DASHBOARD_YEAR_RANGE.max,
-        }));
-      }
-    } else if (isLast3) {
-      setFilters((prev) => ({
-        ...prev,
-        yearStart: DASHBOARD_YEAR_RANGE.min,
-        yearEnd: DASHBOARD_YEAR_RANGE.max,
-      }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabId]);
+  // Default del rango de años por pestaña (últimos 3 / últimos 5 / completo del
+  // país) y subida del año inicial al mínimo del país al cambiar de país. Ver
+  // `useTabYearDefaults` — la regla aplica a todos los tableros.
+  useTabYearDefaults(tabId);
 
   // Cada vez que se entra a una pestaña se incrementa su contador; los bar
   // race usan el contador como runKey para arrancar desde el año inicial.

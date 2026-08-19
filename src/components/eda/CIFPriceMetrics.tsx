@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDASeriesPoint } from "@/app/interfaces/trade/projection";
+import { EDASeriesPoint, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { Loader2, TrendingUp, Activity, BarChart3, Hash } from "lucide-react";
 import { formatCIFPrice, formatNumber } from "@/app/lib/functions/formatters";
@@ -11,6 +11,7 @@ import { formatCIFPrice, formatNumber } from "@/app/lib/functions/formatters";
 interface CIFPriceMetricsProps {
   series: EDASeriesPoint[];
   loading: boolean;
+  frequency: ForecastFrequency;
 }
 
 function mean(values: number[]): number {
@@ -25,11 +26,16 @@ function stddev(values: number[]): number {
   return Math.sqrt(variance);
 }
 
-function useMetrics(series: EDASeriesPoint[]) {
+function useMetrics(series: EDASeriesPoint[], frequency: ForecastFrequency) {
   return useMemo(() => {
+    // Filtrar por frecuencia: en "Mensual" solo las filas mensuales (cuyo
+    // último valor ya es el promedio del último mes), en "Diario" el resto.
+    const byFreq = series.filter((p) =>
+      frequency === "M" ? p.frequency === "M" : p.frequency !== "M"
+    );
     const minYear = new Date().getUTCFullYear() - 2;
-    const visible = series.filter((p) => parseInt(p.date.slice(0, 4), 10) >= minYear);
-    const source = visible.length > 0 ? visible : series;
+    const visible = byFreq.filter((p) => parseInt(p.date.slice(0, 4), 10) >= minYear);
+    const source = visible.length > 0 ? visible : byFreq;
 
     const prices = source
       .map((p) => p.cif_price)
@@ -37,7 +43,10 @@ function useMetrics(series: EDASeriesPoint[]) {
 
     if (prices.length === 0) return null;
 
+    // "Precio Actual": último valor de la serie filtrada por frecuencia. En
+    // mensual coincide con el "Último precio conocido" del forecast.
     const current = prices[prices.length - 1];
+
     const avg = mean(prices);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
@@ -50,13 +59,13 @@ function useMetrics(series: EDASeriesPoint[]) {
       .reverse()[0];
 
     return { current, avg, min, max, cv, dataPoints, latestDate };
-  }, [series]);
+  }, [series, frequency]);
 }
 
-export const CIFPriceMetrics = memo(function CIFPriceMetrics({ series, loading }: CIFPriceMetricsProps) {
+export const CIFPriceMetrics = memo(function CIFPriceMetrics({ series, loading, frequency }: CIFPriceMetricsProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
-  const metrics = useMetrics(series);
+  const metrics = useMetrics(series, frequency);
 
   if (loading && series.length === 0) {
     return (

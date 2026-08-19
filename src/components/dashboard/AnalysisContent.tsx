@@ -1,14 +1,16 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { EDAMetric, EDASeriesPoint, EDACandle, ExternalFeature } from "@/app/interfaces/trade/projection";
+import { EDAMetric, EDASeriesPoint, EDACandle, ExternalFeature, ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { formatDateTime } from "@/app/lib/functions/formatters";
 import { EDAFilters } from "@/components/eda/EDAFilters";
 import { CIFPriceMetrics } from "@/components/eda/CIFPriceMetrics";
 import { CIFPriceLineChart } from "@/components/eda/CIFPriceLineChart";
 import { CIFPriceDistribution } from "@/components/eda/CIFPriceDistribution";
 import { CIFPriceHeatmap } from "@/components/eda/CIFPriceHeatmap";
+import { ProteinEconomics } from "@/components/eda/ProteinEconomics";
 import { CIFPriceCandles } from "@/components/eda/CIFPriceCandles";
 import { ExternalFeaturesChart } from "@/components/eda/ExternalFeaturesChart";
 import { ChartSkeleton } from "@/components/eda/ChartSkeleton";
@@ -52,6 +54,38 @@ export function AnalysisContent({
 }: AnalysisContentProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const [edaFreq, setEdaFreq] = useState<ForecastFrequency>("D");
+
+  const currentPrice = useMemo(() => {
+    // Sigue el toggle de frecuencia: en "Mensual" es el promedio del último mes
+    // (coincide con el "Último precio conocido" del forecast); en "Diario" es el
+    // último punto CIF disponible.
+    const withPrice = series
+      .filter((p) => p.cif_price != null)
+      .filter((p) => (edaFreq === "M" ? p.frequency === "M" : p.frequency !== "M"));
+    if (withPrice.length > 0) {
+      const sorted = [...withPrice].sort((a, b) => a.date.localeCompare(b.date));
+      const lastDate = sorted[sorted.length - 1].date;
+      if (edaFreq === "M") {
+        const lastMonth = lastDate.slice(0, 7);
+        const monthPrices = sorted
+          .filter((p) => p.date.slice(0, 7) === lastMonth)
+          .map((p) => p.cif_price as number);
+        if (monthPrices.length > 0)
+          return monthPrices.reduce((a, b) => a + b, 0) / monthPrices.length;
+      }
+      return sorted[sorted.length - 1].cif_price;
+    }
+    const m = metrics.find((x) => x.current_price != null);
+    return m?.current_price ?? null;
+  }, [edaFreq, metrics, series]);
+
+  const soymealFut = useMemo(() => {
+    const withSoy = series
+      .filter((p) => p.soymeal_fut != null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return withSoy.length > 0 ? withSoy[withSoy.length - 1].soymeal_fut! : null;
+  }, [series]);
 
   return (
     <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
@@ -62,7 +96,7 @@ export function AnalysisContent({
         </span>
         <span className="flex items-center gap-1.5 px-2 py-1 bg-navy-card border border-navy-line rounded-sm">
           <LineChart className="w-3 h-3" />
-          {analysisProductLabel} · {t.eda.monthly}
+          {analysisProductLabel} · {edaFreq === "M" ? t.eda.monthly : t.projection.daily}
         </span>
         <span className="flex items-center gap-1.5 px-2 py-1 bg-navy-card border border-navy-line rounded-sm">
           <Database className="w-3 h-3" />
@@ -95,28 +129,38 @@ export function AnalysisContent({
             selectedMonth={analysisMonth}
             onMonthChange={setAnalysisMonth}
             availableYears={AVAILABLE_YEARS}
+            frequency={edaFreq}
+            onFrequencyChange={setEdaFreq}
             loading={edaLoading}
           />
 
-          <CIFPriceMetrics series={series} loading={edaLoading} />
+          <CIFPriceMetrics series={series} loading={edaLoading} frequency={edaFreq} />
 
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
             <div className="min-w-0 xl:col-span-2">
               <DeferredMount fallback={<ChartSkeleton className="h-[clamp(300px,72vw,380px)]" />}>
-                <CIFPriceLineChart data={series} loading={edaLoading} />
+                <CIFPriceLineChart data={series} loading={edaLoading} frequency={edaFreq} />
               </DeferredMount>
             </div>
             <DeferredMount delay={60} fallback={<ChartSkeleton className="h-[clamp(300px,72vw,380px)]" />}>
-              <CIFPriceDistribution data={series} loading={edaLoading} />
+              <CIFPriceDistribution data={series} loading={edaLoading} frequency={edaFreq} />
             </DeferredMount>
           </div>
 
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-6">
-            <DeferredMount delay={120} fallback={<ChartSkeleton className="h-[clamp(300px,72vw,380px)]" />}>
-              <CIFPriceHeatmap data={series} loading={edaLoading} productsAvailable={analysisProducts} />
-            </DeferredMount>
-            <DeferredMount delay={180} fallback={<ChartSkeleton className="h-[clamp(300px,72vw,380px)]" />}>
-              <ExternalFeaturesChart metrics={metrics} external={external} loading={edaLoading} />
+            <div className="min-w-0 flex flex-col gap-4 h-[clamp(340px,72vw,440px)]">
+              <DeferredMount delay={120} fallback={<ChartSkeleton className="flex-1 min-h-0" />}>
+                <CIFPriceHeatmap data={series} loading={edaLoading} productsAvailable={analysisProducts} />
+              </DeferredMount>
+              <ProteinEconomics
+                productLabel={analysisProductLabel}
+                currentPrice={currentPrice}
+                soymealFut={soymealFut}
+                loading={edaLoading}
+              />
+            </div>
+            <DeferredMount delay={180} fallback={<ChartSkeleton className="h-[clamp(340px,72vw,440px)]" />}>
+              <ExternalFeaturesChart metrics={metrics} external={external} loading={edaLoading} frequency={edaFreq} />
             </DeferredMount>
           </div>
 
