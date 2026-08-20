@@ -140,6 +140,8 @@ function ChartTooltip({ active, payload, label, yFormat, theme }: ChartTooltipPr
         borderColor: T.tooltipBorder,
         boxShadow: T.tooltipShadow,
         minWidth: 160,
+        position: "relative",
+        zIndex: 50,
       }}
     >
       <p
@@ -315,6 +317,7 @@ export function LineChart<T extends object = Record<string, unknown>>({
           <Tooltip
             content={(p: ChartTooltipProps) => <ChartTooltip {...p} yFormat={yFormat} theme={T} />}
             cursor={{ stroke: T.borderStrong, strokeWidth: 1 }}
+            wrapperStyle={{ zIndex: 50, pointerEvents: "none" } as React.CSSProperties}
           />
           <Legend
             iconType="circle"
@@ -348,7 +351,7 @@ export function LineChart<T extends object = Record<string, unknown>>({
         </ReLineChart>
       </ResponsiveContainer>
       {etiquetasFinales && pills.length > 0 && (
-        <div className="pointer-events-none absolute inset-0 z-10" style={{ fontFamily: FONT }}>
+        <div className="pointer-events-none absolute inset-0" style={{ fontFamily: FONT, zIndex: 1 }}>
           <svg width="100%" height={altura} style={{ position: "absolute", inset: 0 }}>
             {pills.filter(p => p.leader).map(p => {
               const x0 = p.x + 3;

@@ -3,14 +3,11 @@
 import React, { useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { TraderMonthlyBreakdown } from "@/app/interfaces/trade/interface";
-import { MESES } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "./TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
 
 const fontQ = "var(--font-poppins), Poppins, sans-serif";
-
-function monthLabel(month: number): string {
-  return MESES[month - 1] ?? String(month);
-}
 
 function fmtInt(n: number): string {
   return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -162,6 +159,13 @@ export function TraderPivotTable({
   rowLabel?: string;
   unit?: { short: string; per: string };
 }) {
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const pt = t.pivotTable;
+  const monthAbbr = t.filters.monthAbbr;
+  function monthLabel(month: number): string {
+    return monthAbbr[month - 1] ?? String(month);
+  }
   const { monthKeys, rows, totals, years } = data;
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -234,8 +238,8 @@ export function TraderPivotTable({
     });
   };
 
-  const valLabel = "Val USD";
-  const priceLabel = `USD/${unit.per}`;
+  const valLabel = pt.valUsd;
+  const priceLabel = pt.pricePerMt.replace("{per}", unit.per);
 
   return (
     <div className="space-y-3">
@@ -248,7 +252,7 @@ export function TraderPivotTable({
           <thead>
             <tr>
               <th rowSpan={3} style={{ ...yearHeaderStyle(T), position: "sticky", left: 0, top: 0, zIndex: 4, minWidth: "clamp(150px, 38vw, 240px)", textAlign: "left", backgroundColor: dark ? "#0a2748" : "#06254B" }}>
-                {rowLabel} · Producto
+                {pt.entityProduct.replace("{label}", rowLabel)}
               </th>
               {yearGroups.map((yg, i) => (
                 <th
@@ -269,7 +273,7 @@ export function TraderPivotTable({
               ))}
               <th
                 rowSpan={3}
-                aria-label="Desplazar a la derecha"
+                aria-label={pt.scrollRight}
                 style={{
                   ...yearHeaderStyle(T),
                   position: "sticky",
@@ -283,7 +287,7 @@ export function TraderPivotTable({
               >
                 <button
                   type="button"
-                  aria-label="Desplazar tabla a la derecha"
+                  aria-label={pt.scrollTableRight}
                   onClick={() => scrollRef.current?.scrollBy({ left: 320, behavior: "smooth" })}
                   className="flex h-full w-full items-center justify-center"
                   style={{ cursor: "pointer", color: "#FFFFFF" }}
@@ -319,7 +323,7 @@ export function TraderPivotTable({
                 return (
                   <React.Fragment key={k}>
                     <th style={{ ...variableHeaderStyle(T), position: "sticky", top: 62, zIndex: 2, minWidth: 92, borderLeft: isNewYear && i !== 0 ? "2px solid rgba(255,255,255,0.30)" : "none" }}>
-                      Vol ({unit.short})
+                      {pt.volShort.replace("{short}", unit.short)}
                     </th>
                     <th style={{ ...variableHeaderStyle(T), position: "sticky", top: 62, zIndex: 2, minWidth: 92 }}>
                       {valLabel}
@@ -414,7 +418,7 @@ export function TraderPivotTable({
           </tbody>
           <tfoot>
             <tr>
-              <td style={{ ...totalLabelStyle(T), position: "sticky", left: 0, zIndex: 1 }}>Total</td>
+              <td style={{ ...totalLabelStyle(T), position: "sticky", left: 0, zIndex: 1 }}>{pt.total}</td>
               {monthKeys.map((k, i) => {
                 const cell = filteredTotals.monthly[k];
                 const isNewYear = i === 0 || monthKeys[i - 1].split("-")[0] !== k.split("-")[0];
@@ -442,7 +446,7 @@ export function TraderPivotTable({
         className="flex flex-wrap items-center gap-3 px-1 text-[10px] uppercase"
         style={{ fontFamily: fontQ, letterSpacing: "0.12em", color: T.textMuted }}
       >
-        <span>Heatmap volumen ({unit.short}):</span>
+        <span>{pt.heatmapLabel.replace("{short}", unit.short)}</span>
         <div
           style={{
             display: "inline-flex",
@@ -453,7 +457,7 @@ export function TraderPivotTable({
             border: `1px solid ${T.border}`,
           }}
         />
-        <span>bajo · alto</span>
+        <span>{pt.heatmapRange}</span>
       </div>
     </div>
   );

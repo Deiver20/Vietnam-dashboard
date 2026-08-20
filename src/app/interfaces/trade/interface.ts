@@ -297,8 +297,7 @@ export type HierarchyDimension =
   | "country"
   | "exportador"
   | "importador"
-  | "aduana"
-  | "empresa";
+  | "aduana";
 
 export interface HierarchyRow {
   categoria: string | null;
@@ -307,7 +306,6 @@ export interface HierarchyRow {
   exportador: string | null;
   importador: string | null;
   aduana: string | null;
-  empresa: string | null;
   registros: number;
   volumenKg: number;
   valorUsd: number;

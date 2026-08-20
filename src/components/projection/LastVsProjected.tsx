@@ -8,16 +8,11 @@ import { formatCIFPrice } from "@/app/lib/functions/formatters";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { ArrowDownRight, ArrowUpRight, Loader2, Minus, Target } from "lucide-react";
 
-const MESES_ES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-function formatSubDate(v: string | undefined): string | undefined {
+function formatSubDate(v: string | undefined, months: string[]): string | undefined {
   if (!v) return undefined;
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return v.slice(0, 7);
-  const month = MESES_ES[d.getUTCMonth()];
+  const month = months[d.getUTCMonth()];
   const year = d.getUTCFullYear();
   return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${year}`;
 }
@@ -70,6 +65,7 @@ function useLastVsProjected(points: ForecastPoint[]) {
 export const LastVsProjected = memo(function LastVsProjected({ points, loading, frequency, horizon }: LastVsProjectedProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const months = t.filters.months.map(m => m.toLowerCase());
   const {
     lastActual,
     projectedEnd,
@@ -107,14 +103,14 @@ export const LastVsProjected = memo(function LastVsProjected({ points, loading, 
       <KpiCard
         label={t.projection.lastActual}
         value={lastActual !== null ? formatCIFPrice(lastActual) : "-"}
-        sub={formatSubDate(lastHistoricalDate)}
+        sub={formatSubDate(lastHistoricalDate, months)}
         icon={<Target className="w-4 h-4" />}
         variant="blue"
       />
       <KpiCard
         label={projectedLabel}
         value={projectedEnd !== null ? formatCIFPrice(projectedEnd) : "-"}
-        sub={formatSubDate(lastProjectedDate)}
+        sub={formatSubDate(lastProjectedDate, months)}
         icon={<Target className="w-4 h-4" />}
         variant="blue"
       />

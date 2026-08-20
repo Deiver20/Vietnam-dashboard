@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
+import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { ForecastFrequency } from "@/app/interfaces/trade/projection";
 import { ChevronDown, Loader2 } from "lucide-react";
 
@@ -73,7 +74,7 @@ export function EDAFilters({
           >
             {productsAvailable.map((p) => (
               <option key={p} value={p}>
-                {p}
+                {translateProduct(p, locale)}
               </option>
             ))}
           </select>

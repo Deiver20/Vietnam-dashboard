@@ -14,18 +14,13 @@ interface ProjectedValuesTableProps {
   frequency: ForecastFrequency;
 }
 
-const MESES_ES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-function formatDate(dateStr: string, frequency: "D" | "M"): string {
+function formatDate(dateStr: string, frequency: "D" | "M", months: string[]): string {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
   if (frequency === "M") {
     const month = d.getUTCMonth();
     const year = d.getUTCFullYear();
-    return `${MESES_ES[month]} ${year}`;
+    return `${months[month]} ${year}`;
   }
   const yyyy = d.getUTCFullYear();
   const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -36,6 +31,7 @@ function formatDate(dateStr: string, frequency: "D" | "M"): string {
 export const ProjectedValuesTable = memo(function ProjectedValuesTable({ points, loading, frequency }: ProjectedValuesTableProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const months = t.filters.months.map(m => m.toLowerCase());
 
   const projected = useMemo(
     () =>
@@ -82,7 +78,7 @@ export const ProjectedValuesTable = memo(function ProjectedValuesTable({ points,
             {projected.map((p) => (
               <tr key={p.id || p.forecast_date} className="border-b border-navy-line/50 hover:bg-navy-mid/40">
                 <td className="py-2 px-2 text-white font-medium">
-                  {formatDate(p.forecast_date, frequency)}
+                  {formatDate(p.forecast_date, frequency, months)}
                 </td>
                 <td className="text-right py-2 px-2 font-mono text-white">
                   ${formatNumber(Math.round(p.point_forecast), 0)}

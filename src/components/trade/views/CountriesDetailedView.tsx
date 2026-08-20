@@ -13,7 +13,12 @@ import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
 import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
 import { TradeFilters, CountryMonthlyBreakdown, ByCountryResponse } from "@/app/interfaces/trade/interface";
+
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
 type Vista = "pivot" | "mapa";
 
@@ -23,7 +28,11 @@ export function CountriesDetailedView() {
   const [mapYear, setMapYear] = useState<number | null>(null);
   const T = useTradeTheme();
   const flow = useDashboard((s) => s.filters.flow);
-  const paisLabel = flow === "exports" ? "destino" : "origen";
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const cd = t.countriesDetailed;
+  const ys = t.yearSelector;
+  const paisLabel = flow === "exports" ? cd.countryOfDestination : cd.countryOfOrigin;
 
   const unit = useMemo(() => getUnitLabel(), []);
 
@@ -78,24 +87,24 @@ export function CountriesDetailedView() {
         className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-3 sm:px-4"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
         role="group"
-        aria-label="Selector de año"
+        aria-label={cd.yearComparatorAria}
       >
         <span
           className="text-[11px] font-semibold uppercase tracking-[0.2em]"
           style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
         >
-          {isMapa ? "Año" : "Comparar"}
+          {isMapa ? t.filters.year : ys.compare}
         </span>
         {yearsList.length === 0 ? (
           <div
             className="flex items-center gap-2 text-xs"
             style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
           >
-            <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> Cargando años…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> {cd.loadingYears}
           </div>
         ) : isMapa ? (
           <select
-            aria-label="Año"
+            aria-label={t.filters.year}
             value={effectiveMapYear ?? undefined}
             onChange={e => setMapYear(Number(e.target.value))}
             style={selectStyle}
@@ -107,7 +116,7 @@ export function CountriesDetailedView() {
         ) : (
           <>
             <select
-              aria-label="Año A"
+              aria-label={ys.yearA}
               value={yearA}
               onChange={e => setYearA(Number(e.target.value))}
               style={selectStyle}
@@ -120,10 +129,10 @@ export function CountriesDetailedView() {
               className="text-xs"
               style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
             >
-              vs
+              {ys.vs}
             </span>
             <select
-              aria-label="Año B"
+              aria-label={ys.yearB}
               value={yearB}
               onChange={e => setYearB(Number(e.target.value))}
               style={selectStyle}
@@ -137,22 +146,22 @@ export function CountriesDetailedView() {
         <span className="w-full sm:ml-auto sm:w-auto" style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif" }}>
           <PillToggle<Vista>
             options={[
-              { id: "pivot", label: "Pivot" },
-              { id: "mapa", label: "Mapa" },
+              { id: "pivot", label: cd.viewPivot },
+              { id: "mapa", label: cd.viewMap },
             ]}
             value={vista}
             onChange={setVista}
-            ariaLabel="Cambiar vista"
+            ariaLabel={cd.toggleView}
           />
         </span>
       </div>
 
       <ChartCard
-        title={isMapa ? "Volumen por país" : "Pivot país × mes"}
+        title={isMapa ? cd.mapTitle : cd.pivotTitle}
         subtitle={
           isMapa
-            ? `Volumen (${unit.short}) por país de ${paisLabel} para ${effectiveMapYear ?? "—"}.`
-            : `Volumen (${unit.short}), valor y precio por país y mes, ordenado por volumen total.`
+            ? formatTemplate(cd.mapSubtitle, { short: unit.short, label: paisLabel, year: String(effectiveMapYear ?? "—") })
+            : cd.pivotSubtitle.replace("{short}", unit.short)
         }
       >
         {error && !isMapa && (
@@ -160,7 +169,7 @@ export function CountriesDetailedView() {
             className="rounded-md border p-4 text-sm"
             style={{ borderColor: "rgba(239, 68, 68, 0.30)", backgroundColor: T.mode === "dark" ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)", color: T.mode === "dark" ? "#f87171" : "#b91c1c" }}
           >
-            Error al cargar el desglose: {error}
+            {cd.loadBreakdownError} {error}
           </div>
         )}
 
@@ -169,7 +178,7 @@ export function CountriesDetailedView() {
             className="flex items-center gap-2 rounded-lg border p-6 text-sm"
             style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
           >
-            <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> Cargando desglose por país…
+            <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> {cd.loadingBreakdown}
           </div>
         )}
 
@@ -182,7 +191,7 @@ export function CountriesDetailedView() {
             className="flex h-[240px] items-center justify-center rounded-lg border text-sm"
             style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
           >
-            Sin datos para los filtros seleccionados.
+            {cd.noData}
           </div>
         )}
 
@@ -194,7 +203,7 @@ export function CountriesDetailedView() {
               className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center rounded-lg border text-sm"
               style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
             >
-              <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: T.accentNavy }} /> Cargando volumen por país…
+              <Loader2 className="h-4 w-4 animate-spin mr-2" style={{ color: T.accentNavy }} /> {cd.loadingVolume}
             </div>
           )
         )}

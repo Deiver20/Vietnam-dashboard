@@ -5,7 +5,14 @@ import { ChevronUp, ChevronDown, X, ArrowLeft } from "lucide-react";
 import type { HierarchyRow, HierarchyDimension, HierarchyMetric } from "@/app/interfaces/trade/interface";
 import { PillToggle } from "@/components/trade/PillToggle";
 import { useTradeTheme } from "./TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
+import { translateCategory, translateCountry } from "@/app/lib/i18n/tradeData";
 import { CardHeader } from "./CardHeader";
+
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
 const fontQ = "var(--font-poppins), Poppins, sans-serif";
 
@@ -31,7 +38,6 @@ const ALL_DIMENSIONS: HierarchyDimension[] = [
   "categoria",
   "producto",
   "country",
-  "empresa",
   "exportador",
   "importador",
   "aduana",
@@ -52,19 +58,19 @@ function fmtUsd(n: number) {
   return `$${n.toFixed(0)}`;
 }
 
-function getDimensionLabels(flow: "imports" | "exports") {
+function getDimensionLabels(flow: "imports" | "exports", locale: import("@/app/interfaces").Locale) {
+  const t = getTranslation(locale);
   return {
-    categoria: "Categoría",
-    producto: "Producto",
-    country: flow === "imports" ? "País origen" : "País destino",
-    empresa: "Empresa",
-    exportador: "Exportador",
-    importador: "Importador",
-    aduana: "Aduana",
+    categoria: t.decomposition.categoria,
+    producto: t.decomposition.producto,
+    country: flow === "imports" ? t.filters.countryOfOrigin : t.filters.countryOfDestination,
+    exportador: t.traders.exporter,
+    importador: t.traders.importer,
+    aduana: t.traders.custom,
   };
 }
 
-function getMetricConfig(metric: HierarchyMetric, unit: { short: string; per: string }, accentColor: string) {
+function getMetricConfig(metric: HierarchyMetric, unit: { short: string; per: string }, accentColor: string, dec: ReturnType<typeof getTranslation>["decomposition"]) {
   switch (metric) {
     case "precioUsd":
       return {
@@ -74,25 +80,26 @@ function getMetricConfig(metric: HierarchyMetric, unit: { short: string; per: st
       };
     default:
       return {
-        label: `Volumen (${unit.short})`,
+        label: dec.volumeLabel.replace("{short}", unit.short),
         format: (n: number) => fmtKg(n, unit.short),
         color: accentColor,
       };
   }
 }
 
-function getRowValue(row: HierarchyRow, dimension: HierarchyDimension): string {
+function getRowValue(row: HierarchyRow, dimension: HierarchyDimension, noValueLabel: string): string {
   const record = row as unknown as Record<string, string | number | null | undefined>;
-  return String(record[dimension] ?? "Sin valor");
+  return String(record[dimension] ?? noValueLabel);
 }
 
 function aggregate(
   rows: HierarchyRow[],
   dimension: HierarchyDimension,
+  noValueLabel: string,
 ): Array<{ key: string; volumenKg: number; valorUsd: number; cifFiltrado: number; volFiltrado: number; registros: number }> {
   const map = new Map<string, { volumenKg: number; valorUsd: number; cifFiltrado: number; volFiltrado: number; registros: number }>();
   for (const r of rows) {
-    const key = getRowValue(r, dimension);
+    const key = getRowValue(r, dimension, noValueLabel);
     const prev = map.get(key);
     if (prev) {
       prev.volumenKg += r.volumenKg;
@@ -139,10 +146,13 @@ export function DecompositionTree({
   headerActions,
   contentOverride,
 }: Props) {
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const dec = t.decomposition;
   const [path, setPath] = useState<string[]>([]);
-  const labels = useMemo(() => getDimensionLabels(flow), [flow]);
+  const labels = useMemo(() => getDimensionLabels(flow, locale), [flow, locale]);
   const T = useTradeTheme();
-  const cfg = useMemo(() => getMetricConfig(metric, unit, T.accentNavy), [metric, unit, T.accentNavy]);
+  const cfg = useMemo(() => getMetricConfig(metric, unit, T.accentNavy, dec), [metric, unit, T.accentNavy, dec]);
 
   useEffect(() => {
     setPath([]);
@@ -153,10 +163,10 @@ export function DecompositionTree({
     for (let i = 0; i < path.length; i++) {
       const dim = dimensions[i];
       const val = path[i];
-      rows = rows.filter(r => getRowValue(r, dim) === val);
+      rows = rows.filter(r => getRowValue(r, dim, dec.noValue) === val);
     }
     return rows;
-  }, [data, dimensions, path]);
+  }, [data, dimensions, path, dec.noValue]);
 
   const root = useMemo(() => {
     const volumenKg = data.reduce((acc, r) => acc + r.volumenKg, 0);
@@ -183,7 +193,7 @@ export function DecompositionTree({
         continue;
       }
 
-      const aggregated = aggregate(filteredRows, dim);
+      const aggregated = aggregate(filteredRows, dim, dec.noValue);
       const computed = aggregated.map(r => ({
         ...r,
         value: computeMetricValue(metric, r),
@@ -200,7 +210,7 @@ export function DecompositionTree({
         const othersCifFiltrado = others.reduce((acc, o) => acc + o.cifFiltrado, 0);
         const othersVolFiltrado = others.reduce((acc, o) => acc + o.volFiltrado, 0);
         rowsOut.push({
-          key: "Otros",
+          key: dec.others,
           value: computeMetricValue(metric, { volumenKg: othersVol, valorUsd: othersValorUsd, cifFiltrado: othersCifFiltrado, volFiltrado: othersVolFiltrado }),
           volumenKg: othersVol,
           valorUsd: othersValorUsd,
@@ -219,7 +229,7 @@ export function DecompositionTree({
       });
     }
     return cols;
-  }, [filteredRows, dimensions, labels, metric, path]);
+  }, [filteredRows, dimensions, labels, metric, path, dec.others, dec.noValue]);
 
   const moveDimension = (idx: number, dir: -1 | 1) => {
     const newIdx = idx + dir;
@@ -261,8 +271,8 @@ export function DecompositionTree({
       >
         <CardHeader
           theme={T}
-          title="Desglose de operaciones"
-          subtitle="Navega por jerarquías: categoría, producto, país, empresa y aduana."
+          title={dec.title}
+          subtitle={dec.subtitle}
           actions={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <div className="flex items-center gap-2">
@@ -270,7 +280,7 @@ export function DecompositionTree({
                   className="text-[10px] font-semibold uppercase tracking-[0.15em]"
                   style={{ color: T.accentNavy }}
                 >
-                  Año
+                  {dec.yearLabel}
                 </span>
                 {availableYears.length === 0 ? (
                   <div
@@ -281,11 +291,11 @@ export function DecompositionTree({
                       className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
                       style={{ color: T.accentNavy }}
                     />
-                    Cargando años…
+                    {dec.loadingYears}
                   </div>
                 ) : (
                   <select
-                    aria-label="Año de análisis"
+                    aria-label={dec.yearAria}
                     value={selectedYear ?? availableYears[0]}
                     onChange={e => onYearChange(Number(e.target.value))}
                     className="rounded border px-2 py-1 text-xs font-semibold outline-none"
@@ -322,7 +332,7 @@ export function DecompositionTree({
                   <div className="ml-1 flex items-center">
                     <button
                       type="button"
-                      aria-label={`Subir ${labels[dim]}`}
+                      aria-label={formatTemplate(dec.moveUpAria, { label: labels[dim] })}
                       onClick={() => moveDimension(idx, -1)}
                       disabled={idx === 0}
                       className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)] disabled:opacity-30"
@@ -332,7 +342,7 @@ export function DecompositionTree({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Bajar ${labels[dim]}`}
+                      aria-label={formatTemplate(dec.moveDownAria, { label: labels[dim] })}
                       onClick={() => moveDimension(idx, 1)}
                       disabled={idx === dimensions.length - 1}
                       className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)] disabled:opacity-30"
@@ -342,7 +352,7 @@ export function DecompositionTree({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Quitar ${labels[dim]}`}
+                      aria-label={formatTemplate(dec.removeAria, { label: labels[dim] })}
                       onClick={() => removeDimension(idx)}
                       className="rounded p-0.5 hover:bg-[var(--trade-surface-hover)]"
                       style={{ color: "#ef4444" }}
@@ -354,13 +364,13 @@ export function DecompositionTree({
               ))}
 
               <select
-                aria-label="Agregar dimensión"
+                aria-label={dec.addDimensionAria}
                 value=""
                 onChange={e => addDimension(e.target.value as HierarchyDimension)}
                 className="rounded border px-2 py-1 text-xs font-semibold outline-none"
                 style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
               >
-                <option value="" disabled>Agregar dimensión</option>
+                <option value="" disabled>{dec.addDimension}</option>
                 {ALL_DIMENSIONS.filter(d => !dimensions.includes(d)).map(d => (
                   <option key={d} value={d}>{labels[d]}</option>
                 ))}
@@ -369,15 +379,15 @@ export function DecompositionTree({
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs" style={{ color: T.textMuted }}>
-                <span>Métrica:</span>
+                <span>{dec.metricLabel}</span>
                 <PillToggle<HierarchyMetric>
                   options={[
-                    { id: "volumenKg", label: `Volumen (${unit.short})` },
+                    { id: "volumenKg", label: dec.volumeLabel.replace("{short}", unit.short) },
                     { id: "precioUsd", label: `USD/${unit.per}` },
                   ]}
                   value={metric}
                   onChange={onMetricChange}
-                  ariaLabel="Cambiar métrica"
+                  ariaLabel={dec.toggleMetricAria}
                 />
               </div>
 
@@ -388,7 +398,7 @@ export function DecompositionTree({
                   className="flex items-center gap-1 rounded border px-2 py-1 text-xs font-semibold hover:bg-[var(--trade-surface-hover)]"
                   style={{ borderColor: T.borderStrong, color: T.accentNavy, backgroundColor: T.surfaceAlt, fontFamily: fontQ }}
                 >
-                  <ArrowLeft className="h-3 w-3" /> Reiniciar jerarquía
+                  <ArrowLeft className="h-3 w-3" /> {dec.resetHierarchy}
                 </button>
               )}
             </div>
@@ -398,7 +408,7 @@ export function DecompositionTree({
 
       {!contentOverride && path.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs" style={{ fontFamily: fontQ, color: T.textMuted }}>
-          <span className="font-semibold uppercase tracking-wider">Filtro activo:</span>
+          <span className="font-semibold uppercase tracking-wider">{dec.activeFilterLabel}</span>
           {path.map((val, i) => (
             <span key={i} className="rounded border px-2 py-0.5" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
               <span className="font-semibold" style={{ color: T.accentNavy }}>{labels[dimensions[i]]}:</span>{" "}
@@ -411,14 +421,17 @@ export function DecompositionTree({
       {!contentOverride && loading && (
         <div className="flex items-center gap-2 text-sm" style={{ color: T.textMuted, fontFamily: fontQ }}>
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" style={{ color: T.accentNavy }} />
-          Cargando operaciones…
+          {dec.loadingHierarchy}
         </div>
       )}
 
       {contentOverride ? contentOverride : (
         <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:overflow-x-auto">
         <TreeColumn
-          title="Total"
+          title={dec.total}
+          recordsLabel={dec.records}
+          emptyHint={dec.pickParentValueHint}
+          locale={locale}
           rows={[
             {
               key: "total",
@@ -438,6 +451,9 @@ export function DecompositionTree({
           <TreeColumn
             key={col.dimension}
             title={col.label}
+            recordsLabel={dec.records}
+            emptyHint={dec.pickParentValueHint}
+            locale={locale}
             rows={col.rows.map(r => ({
               key: r.key,
               label: r.key,
@@ -464,6 +480,9 @@ function TreeColumn({
   rows,
   onRowClick,
   disabledKeys = new Set<string>(),
+  recordsLabel,
+  emptyHint,
+  locale,
 }: {
   title: string;
   rows: Array<{
@@ -479,6 +498,9 @@ function TreeColumn({
   }>;
   onRowClick?: (key: string) => void;
   disabledKeys?: Set<string>;
+  recordsLabel: string;
+  emptyHint: string;
+  locale: import("@/app/interfaces").Locale;
 }) {
   const T = useTradeTheme();
   return (
@@ -527,14 +549,14 @@ function TreeColumn({
                 />
               </div>
               <div className="mt-1 text-[10px]" style={{ color: T.textMuted, fontFamily: fontQ }}>
-                {row.registros.toLocaleString("es-MX")} registros
+                {recordsLabel.replace("{count}", row.registros.toLocaleString(locale === "es" ? "es-MX" : locale === "fr" ? "fr-FR" : locale === "pt" ? "pt-BR" : "en-US"))}
               </div>
             </button>
           );
         })}
         {rows.length === 0 && (
           <div className="py-4 text-center text-xs italic" style={{ color: T.textMuted, fontFamily: fontQ }}>
-            Selecciona un valor en el nivel anterior
+            {emptyHint}
           </div>
         )}
       </div>

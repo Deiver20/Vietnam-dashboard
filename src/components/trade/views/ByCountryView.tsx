@@ -9,14 +9,16 @@ import { useByCountry } from "@/hooks/trade/useByCountry";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { getCountryColor, getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
+import { translateCountry } from "@/app/lib/i18n/tradeData";
 import { TradeFilters, ByCountryResponse } from "@/app/interfaces/trade/interface";
 
 const fontQ = "var(--font-poppins), Poppins, sans-serif";
 
-const MONTH_NAMES = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
-];
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
 const selectStyle = (T: ReturnType<typeof useTradeTheme>): React.CSSProperties => ({
   fontFamily: fontQ,
@@ -44,6 +46,10 @@ export function ByCountryView() {
   const [modoTiempo, setModoTiempo] = useState<ModoTiempo>("meses");
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const T = useTradeTheme();
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const bc = t.byCountry;
+  const MONTH_NAMES = t.filters.monthAbbr;
 
   const unit = useMemo(() => getUnitLabel(), []);
   const formatters = useMemo(() => makeFormatters(unit), [unit]);
@@ -72,8 +78,8 @@ export function ByCountryView() {
 
   const timelineSeries = useMemo(() => {
     if (!data) return [];
-    return topCountries.map((country, i) => ({ key: country, nombre: country, color: getCountryColor(i, T.mode) }));
-  }, [data, topCountries, T.mode]);
+    return topCountries.map((country, i) => ({ key: country, nombre: translateCountry(country, locale), color: getCountryColor(i, T.mode) }));
+  }, [data, topCountries, T.mode, locale]);
 
   const timelineData = useMemo(() => {
     if (!data || topCountries.length === 0) return [] as Array<Record<string, number | string>>;
@@ -104,27 +110,27 @@ export function ByCountryView() {
       const key = String(i + 1);
       return map[key] ?? { label: MONTH_NAMES[i] };
     });
-  }, [data, topCountries, modoTiempo, selectedYear]);
+  }, [data, topCountries, modoTiempo, selectedYear, MONTH_NAMES]);
 
   return (
     <div className="space-y-4">
       <ChartCard
-        title="Volumen por país"
+        title={bc.title}
         subtitle={
           modoTiempo === "anos"
-            ? `Top 6 países por volumen anual (${unit.short}).`
-            : `Top 6 países por volumen mensual (${unit.short}), año ${selectedYear}.`
+            ? formatTemplate(bc.subtitleYearly, { short: unit.short })
+            : formatTemplate(bc.subtitleMonthly, { short: unit.short, year: String(selectedYear ?? "—") })
         }
         acciones={
           <div className="flex flex-wrap items-center gap-2">
             <PillToggle<ModoTiempo>
               options={[
-                { id: "meses", label: "Meses" },
-                { id: "anos", label: "Años" },
+                { id: "meses", label: bc.monthsLabel },
+                { id: "anos", label: bc.yearsLabel },
               ]}
               value={modoTiempo}
               onChange={setModoTiempo}
-              ariaLabel="Cambiar granularidad"
+              ariaLabel={bc.toggleGranularity}
             />
           </div>
         }
@@ -138,18 +144,18 @@ export function ByCountryView() {
               className="text-[11px] font-semibold uppercase tracking-[0.2em]"
               style={{ fontFamily: fontQ, color: T.accentNavy }}
             >
-              Año
+              {t.filters.year}
             </span>
             {availableYears.length === 0 ? (
               <div
                 className="flex items-center gap-2 text-xs"
                 style={{ fontFamily: fontQ, color: T.textMuted }}
               >
-                <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> Cargando años…
+                <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> {bc.loadingYears}
               </div>
             ) : (
               <select
-                aria-label="Año"
+                aria-label={bc.yearSelectorAria}
                 value={selectedYear ?? availableYears[0]}
                 onChange={e => setSelectedYear(Number(e.target.value))}
                 style={selectStyle(T)}

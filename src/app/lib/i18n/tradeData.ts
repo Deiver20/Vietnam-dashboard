@@ -311,6 +311,7 @@ const COUNTRIES: Record<string, Record<Locale, string>> = {
    traducimos a los 4 idiomas. Las claves son el nombre en inglés canónico.
 --------------------------------------------------------------------------- */
 const PRODUCTS: Record<string, Record<Locale, string>> = {
+  "Soybean Meal": { en: "Soybean Meal", es: "Harina de soja", fr: "Tourteau de soja", pt: "Farinha de soja" },
   "Blood meal": { en: "Blood meal", es: "Harina de sangre", fr: "Farine de sang", pt: "Farinha de sangue" },
   "Bones": { en: "Bones", es: "Huesos", fr: "Os", pt: "Ossos" },
   "Bovine Meal": { en: "Bovine meal", es: "Harina bovina", fr: "Farine bovine", pt: "Farinha bovina" },

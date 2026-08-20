@@ -9,12 +9,23 @@ import { useYearComparator } from "@/hooks/trade/useYearComparator";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { YEAR_PALETTE, UNIT_VOLUMEN, getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
+import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { TradeFilters, ByProductResponse, ByProductComparative, ByProductRow } from "@/app/interfaces/trade/interface";
+
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
 export function ByProductView() {
   const { yearA, yearB, yearsList, setYearA, setYearB } = useYearComparator();
   const T = useTradeTheme();
   const dark = T.mode === "dark";
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const ys = t.yearSelector;
+  const bp = t.byProduct;
 
   const unit = useMemo(() => getUnitLabel(), []);
   const formatters = useMemo(() => makeFormatters(unit), [unit]);
@@ -61,8 +72,6 @@ export function ByProductView() {
     const list: ByProductRow[] = Array.isArray(datos) && datos.length > 0 && "years" in datos[0]
       ? flattenComparatives(datos as ByProductComparative[])
       : (datos as ByProductRow[]);
-    // Muestra todos los productos del año A (aunque no existan en el año B,
-    // que queda en 0). Así un año incompleto no oculta la data del año completo.
     const yearASet = new Set(
       list.filter(d => d.year === yearA && d.volumenKg > 0).map(d => d.producto)
     );
@@ -72,13 +81,13 @@ export function ByProductView() {
         const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
         const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
         return {
-          producto: p.producto,
+          producto: translateProduct(p.producto, locale),
           [String(yearA)]: rowA?.volumenKg ?? 0,
           [String(yearB)]: rowB?.volumenKg ?? 0,
         };
       })
       .filter(d => (d[String(yearA)] as number) > 0);
-  }, [datos, topByVolume, yearA, yearB]);
+  }, [datos, topByVolume, yearA, yearB, locale]);
 
   const priceData = useMemo(() => {
     if (!datos) return [];
@@ -94,13 +103,13 @@ export function ByProductView() {
         const rowA = list.find(d => d.producto === p.producto && d.year === yearA);
         const rowB = list.find(d => d.producto === p.producto && d.year === yearB);
         return {
-          producto: p.producto,
+          producto: translateProduct(p.producto, locale),
           [String(yearA)]: rowA?.precioUsd ?? 0,
           [String(yearB)]: rowB?.precioUsd ?? 0,
         };
       })
       .filter(d => (d[String(yearA)] as number) > 0);
-  }, [datos, topByPrice, yearA, yearB]);
+  }, [datos, topByPrice, yearA, yearB, locale]);
 
   const volumeSeries = useMemo(() => [
     { key: String(yearA), nombre: String(yearA), color: YEAR_PALETTE[0] },
@@ -133,26 +142,26 @@ export function ByProductView() {
 <div
         className="flex flex-col gap-2 rounded-lg border px-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4"
         role="group"
-        aria-label="Comparador de años"
+        aria-label={bp.yearComparatorAria}
         style={{ borderColor: T.border, backgroundColor: T.surface }}
       >
         <span
           className="text-[11px] font-semibold uppercase tracking-[0.2em] sm:mr-1"
           style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
         >
-          Comparar
+          {ys.compare}
         </span>
         {yearsList.length === 0 ? (
           <div
             className="flex items-center gap-2 text-xs"
             style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
           >
-            <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> Cargando años…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" style={{ color: T.accentNavy }} /> {bp.loadingYears}
           </div>
         ) : (
           <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
             <select
-              aria-label="Año A"
+              aria-label={ys.yearA}
               value={yearA}
               onChange={e => setYearA(Number(e.target.value))}
               style={{ ...selectStyle, minWidth: 0, flex: "1 1 0" }}
@@ -165,10 +174,10 @@ export function ByProductView() {
               className="shrink-0 text-xs"
               style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
             >
-              vs
+              {ys.vs}
             </span>
             <select
-              aria-label="Año B"
+              aria-label={ys.yearB}
               value={yearB}
               onChange={e => setYearB(Number(e.target.value))}
               style={{ ...selectStyle, minWidth: 0, flex: "1 1 0" }}
@@ -183,8 +192,8 @@ export function ByProductView() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ChartCard
-          title="Volumen por producto"
-          subtitle={`Top 15 por volumen (${unit.short}). Comparando ${yearA} vs ${yearB}.`}
+          title={bp.titleVolume}
+          subtitle={formatTemplate(bp.subtitleVolume, { short: unit.short, yearA: String(yearA), yearB: String(yearB) })}
         >
           {!datos ? (
             <div className="flex h-[480px] items-center justify-center text-gray-4">
@@ -204,8 +213,8 @@ export function ByProductView() {
         </ChartCard>
 
         <ChartCard
-          title="Precio unitario"
-          subtitle={`Top 15 por precio (USD/${UNIT_VOLUMEN.per}). Comparando ${yearA} vs ${yearB}.`}
+          title={bp.titlePrice}
+          subtitle={formatTemplate(bp.subtitlePrice, { per: UNIT_VOLUMEN.per, yearA: String(yearA), yearB: String(yearB) })}
         >
           {!datos ? (
             <div className="flex h-[480px] items-center justify-center text-gray-4">

@@ -148,7 +148,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
                       }
                 }
               >
-                {isExports ? "Precio FOB US$" : "Precio CIF US$"}
+                {isExports ? t.dashboard.priceFob : t.dashboard.priceCif}
               </button>
               <button
                 type="button"
@@ -168,7 +168,7 @@ export function TotalImportsChart({ data, loading, error }: TotalImportsChartPro
                       }
                 }
               >
-                Volume (mt)
+                {t.dashboard.volumeMt}
               </button>
             </div>
           }

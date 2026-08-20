@@ -15,25 +15,27 @@ import { useYearComparator } from "@/hooks/trade/useYearComparator";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { YEAR_PALETTE, getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
 import { TradeFilters, TraderByYearRow, TraderMonthlyBreakdown, TraderType } from "@/app/interfaces/trade/interface";
 
-const TIPO_META: Record<TraderType, { label: string; color: string }> = {
-  importer: { label: "Importadores", color: "#03488D" },
-  exporter: { label: "Exportadores", color: "#1D9E75" },
-  customs:  { label: "Aduanas",      color: "#E07B2A" },
+const TIPO_COLOR: Record<TraderType, string> = {
+  importer: "#03488D",
+  exporter: "#1D9E75",
+  customs:  "#E07B2A",
 };
 
-const ROW_LABEL: Record<TraderType, string> = {
-  importer: "Importador",
-  exporter: "Exportador",
-  customs:  "Aduana",
-};
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
-const ROW_LABEL_PLURAL: Record<TraderType, string> = {
-  importer: "importadores",
-  exporter: "exportadores",
-  customs:  "aduanas",
-};
+function tipoLabels(t: ReturnType<typeof getTranslation>["traders"]) {
+  return {
+    importer: { label: t.importers, singular: t.importer, plural: t.importers.toLowerCase() },
+    exporter: { label: t.exporters, singular: t.exporter, plural: t.exporters.toLowerCase() },
+    customs:  { label: t.customs,   singular: t.custom,    plural: t.customs.toLowerCase() },
+  } as const;
+}
 
 type LeftMetric = "volumenKg" | "valorUsd";
 type RightMetric = "precioUsd";
@@ -46,6 +48,25 @@ export function TradersView() {
   const { yearA, setYearA, yearB, setYearB, yearsList } = useYearComparator();
   const [singleYear, setSingleYear] = useState<number | null>(null);
   const T = useTradeTheme();
+  const locale = useDashboard((s) => s.locale);
+  const tt = getTranslation(locale).traders;
+  const ys = getTranslation(locale).yearSelector;
+  const LABELS = tipoLabels(tt);
+  const ROW_LABEL: Record<TraderType, string> = {
+    importer: LABELS.importer.singular,
+    exporter: LABELS.exporter.singular,
+    customs:  LABELS.customs.singular,
+  };
+  const ROW_LABEL_PLURAL: Record<TraderType, string> = {
+    importer: LABELS.importer.plural,
+    exporter: LABELS.exporter.plural,
+    customs:  LABELS.customs.plural,
+  };
+  const TIPO_META: Record<TraderType, { label: string; color: string }> = {
+    importer: { label: LABELS.importer.label, color: TIPO_COLOR.importer },
+    exporter: { label: LABELS.exporter.label, color: TIPO_COLOR.exporter },
+    customs:  { label: LABELS.customs.label,  color: TIPO_COLOR.customs },
+  };
 
   const unit = useMemo(() => getUnitLabel(), []);
   const formatters = useMemo(() => makeFormatters(unit), [unit]);
@@ -72,9 +93,9 @@ export function TradersView() {
   const { filters: monthlyFilters, fetcher: monthlyFetcher } = useTraderMonthly(tipo, years);
   const { datos: breakdown, cargando: cargandoBreakdown, error: errorBreakdown } = useDebouncedFilters<TradeFilters, TraderMonthlyBreakdown>(monthlyFilters, monthlyFetcher);
 
-  const LEFT_METRIC_OPTIONS: { id: LeftMetric; label: string }[] = [
-    { id: "volumenKg", label: `Volumen (${unit.short})` },
-    { id: "valorUsd",  label: "Valor USD" },
+const LEFT_METRIC_OPTIONS: { id: LeftMetric; label: string }[] = [
+    { id: "volumenKg", label: tt.leftVolume.replace("{short}", unit.short) },
+    { id: "valorUsd",  label: tt.leftUsd },
   ];
 
   const LEFT_METRIC_FORMAT: Record<LeftMetric, (v: number) => string> = {
@@ -218,7 +239,7 @@ export function TradersView() {
             className="text-[10px] font-semibold uppercase"
             style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", letterSpacing: "0.18em", color: T.textMuted }}
           >
-            Ver:
+            {tt.view}
           </span>
           <div className="inline-flex flex-wrap items-center gap-2">
             {(Object.keys(TIPO_META) as TraderType[]).map(opt => {
@@ -260,10 +281,10 @@ export function TradersView() {
                   className="text-[10px] font-semibold uppercase tracking-[0.18em]"
                   style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
                 >
-                  Comparar
+                  {ys.compare}
                 </span>
                 <select
-                  aria-label="Año A"
+                  aria-label={ys.yearA}
                   value={yearA}
                   onChange={e => setYearA(Number(e.target.value))}
                   style={selectStyle}
@@ -276,10 +297,10 @@ export function TradersView() {
                   className="text-xs"
                   style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.textMuted }}
                 >
-                  vs
+                  {ys.vs}
                 </span>
                 <select
-                  aria-label="Año B"
+                  aria-label={ys.yearB}
                   value={yearB}
                   onChange={e => setYearB(Number(e.target.value))}
                   style={selectStyle}
@@ -311,16 +332,16 @@ export function TradersView() {
             )}
           </div>
         </div>
-        <span className="self-start sm:self-auto">
+<span className="self-start sm:self-auto">
         <PillToggle<Vista>
           options={[
-            { id: "graficos", label: "Gráficos" },
-            { id: "tabla", label: "Tabla" },
-            { id: "mapa", label: "Mapa" },
+            { id: "graficos", label: tt.viewCharts },
+            { id: "tabla", label: tt.viewTable },
+            { id: "mapa", label: tt.viewMap },
           ]}
           value={vista}
           onChange={setVista}
-          ariaLabel="Cambiar vista"
+          ariaLabel={tt.toggleView}
         />
         </span>
       </div>
@@ -329,13 +350,17 @@ export function TradersView() {
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <ChartCard
-              title={`Top 15 ${ROW_LABEL_PLURAL[tipo]} por ${leftTitleLabel.toLowerCase()} (${comparar ? `${yearA} vs ${yearB}` : singleYearValue})`}
+              title={formatTemplate(tt.topBy, {
+                plural: ROW_LABEL_PLURAL[tipo],
+                metric: leftTitleLabel.toLowerCase(),
+                years: comparar ? `${yearA} vs ${yearB}` : String(singleYearValue),
+              })}
               acciones={
                 <PillToggle<LeftMetric>
                   options={LEFT_METRIC_OPTIONS}
                   value={leftMetric}
                   onChange={setLeftMetric}
-                  ariaLabel="Métrica del gráfico izquierdo"
+                  ariaLabel={tt.toggleMetric}
                 />
               }
             >
@@ -358,7 +383,11 @@ export function TradersView() {
              </ChartCard>
 
             <ChartCard
-              title={`Top 15 ${ROW_LABEL_PLURAL[tipo]} por precio (USD/${unit.per}) (${comparar ? `${yearA} vs ${yearB}` : singleYearValue})`}
+              title={formatTemplate(tt.topByPrice, {
+                plural: ROW_LABEL_PLURAL[tipo],
+                unit: unit.per,
+                years: comparar ? `${yearA} vs ${yearB}` : String(singleYearValue),
+              })}
             >
               {!datos ? (
                 <div className="flex h-[min(420px,78vw)] min-h-[300px] items-center justify-center text-gray-4">
@@ -383,8 +412,12 @@ export function TradersView() {
 
       {vista === "tabla" && (
         <ChartCard
-          title={`Pivot ${ROW_LABEL[tipo].toLowerCase()} × mes`}
-          subtitle={`Volumen (${unit.short}), valor y precio por ${ROW_LABEL[tipo].toLowerCase()} y mes, ordenado por volumen total (${comparar ? `${yearA} vs ${yearB}` : singleYearValue}).`}
+          title={formatTemplate(tt.pivotTitle, { singular: ROW_LABEL[tipo].toLowerCase() })}
+          subtitle={formatTemplate(tt.pivotSubtitle, {
+            singular: ROW_LABEL[tipo].toLowerCase(),
+            short: unit.short,
+            years: comparar ? `${yearA} vs ${yearB}` : String(singleYearValue),
+          })}
         >
           {errorBreakdown && (
             <div
@@ -400,7 +433,7 @@ export function TradersView() {
               className="flex items-center gap-2 rounded-lg border p-6 text-sm"
               style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
             >
-              <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> Cargando desglose por {ROW_LABEL[tipo].toLowerCase()}…
+              <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> {formatTemplate(tt.loadingBreakdown, { singular: ROW_LABEL[tipo].toLowerCase() })}
             </div>
           )}
 
@@ -421,8 +454,12 @@ export function TradersView() {
 
       {vista === "mapa" && (
         <ChartCard
-          title="Rutas → Vietnam"
-          subtitle={`Ubicación estimada de los principales ${ROW_LABEL_PLURAL[tipo]} por volumen (${unit.short}) agregado ${comparar ? `${yearA}-${yearB}` : singleYearValue}.`}
+          title={tt.mapTitle}
+          subtitle={formatTemplate(tt.mapSubtitle, {
+            plural: ROW_LABEL_PLURAL[tipo],
+            short: unit.short,
+            years: comparar ? `${yearA}-${yearB}` : String(singleYearValue),
+          })}
         >
           {!datos ? (
             <div className="flex h-[min(380px,70vw)] min-h-[280px] items-center justify-center text-gray-4">

@@ -8,6 +8,9 @@ import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { CATEGORY_COLORS } from "@/app/lib/trade/constants";
 import { TradeFilters, HsCodeRow } from "@/app/interfaces/trade/interface";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
+import { translateCategory } from "@/app/lib/i18n/tradeData";
 
 function categoryStyle(name: string, dark: boolean): React.CSSProperties {
   const base = CATEGORY_COLORS[name] ?? (dark ? "#67a6ff" : "#06254B");
@@ -32,15 +35,6 @@ function codeTypeStyle(name: string, dark: boolean): React.CSSProperties {
     : { backgroundColor: "rgba(6,37,75,0.08)", color: "#5a6478", border: "1px solid rgba(6,37,75,0.15)" };
 }
 
-/* The five digit positions of an HS code, as in the AGM-Front dashboard. */
-const HS_POSITIONS = [
-  { num: "01", label: "Chapter" },
-  { num: "23", label: "Heading" },
-  { num: "45", label: "Sub-Heading" },
-  { num: "67", label: "Tariff Item" },
-  { num: "89", label: "Classification Number" },
-];
-
 const POSITION_COLORS = ["#67A6FF", "#33CC00", "#FCB514", "#F35959", "#9B59B6"];
 
 export function HsCodesView() {
@@ -48,30 +42,41 @@ export function HsCodesView() {
   const { datos, error, cargando } = useDebouncedFilters<TradeFilters, HsCodeRow[]>(filters, fetcher);
   const T = useTradeTheme();
   const dark = T.mode === "dark";
+  const locale = useDashboard((s) => s.locale);
+  const t = getTranslation(locale);
+  const hs = t.hsCodes;
   const codeColor = dark ? T.textPrimary : "#06254B";
   const codeSub = dark ? "#67a6ff" : "#03488D";
 
+  const HS_POSITIONS = [
+    { num: "01", label: hs.positions.chapter },
+    { num: "23", label: hs.positions.heading },
+    { num: "45", label: hs.positions.subHeading },
+    { num: "67", label: hs.positions.tariffItem },
+    { num: "89", label: hs.positions.classificationNumber },
+  ];
+
   const columnas: Columna<HsCodeRow>[] = useMemo(() => [
-    { key: "codigo",      titulo: "Code",  align: "center", width: "16%",
+    { key: "codigo",      titulo: hs.code,  align: "center", width: "16%",
       formato: v => <span className="font-mono-numbers text-[11px]" style={{ color: codeColor }}>{String(v)}</span> },
-    { key: "codigoHs",    titulo: "HS Code",  align: "center", width: "13%",
+    { key: "codigoHs",    titulo: hs.hsCode,  align: "center", width: "13%",
       formato: (_, row) => <span className="font-mono-numbers text-[11px]" style={{ color: codeSub }}>{String(row.fraccion ?? "").slice(0, 6)}</span> },
-    { key: "partida",     titulo: "Heading",  align: "center", width: "11%",
+    { key: "partida",     titulo: hs.heading,  align: "center", width: "11%",
       formato: v => <span className="font-mono-numbers text-[11px]" style={{ color: codeColor }}>{String(v)}</span> },
-    { key: "producto",    titulo: "Product",  align: "center", width: "22%",
+    { key: "producto",    titulo: hs.product,  align: "center", width: "22%",
       formato: v => <span style={{ color: codeColor }}>{String(v) || "—"}</span> },
-    { key: "categoria",   titulo: "Category",  align: "center", width: "13%",
+    { key: "categoria",   titulo: hs.category,  align: "center", width: "13%",
       formato: v => (
         <span
           className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
           style={categoryStyle(String(v), dark)}
         >
-          {String(v)}
+          {translateCategory(String(v), locale)}
         </span>
       ) },
-    { key: "industry",    titulo: "Industry",  align: "left", width: "12%",
+    { key: "industry",    titulo: hs.industry,  align: "left", width: "12%",
       formato: v => <span style={{ color: codeColor }}>{String(v) || "—"}</span> },
-    { key: "codeType",    titulo: "Code Type",  align: "center", width: "13%",
+    { key: "codeType",    titulo: hs.codeType,  align: "center", width: "13%",
       formato: v => (
         <span
           className="inline-block rounded px-2 py-0.5 text-[10px] font-semibold"
@@ -80,11 +85,10 @@ export function HsCodesView() {
           {String(v) || "—"}
         </span>
       ) },
-  ], [codeColor, codeSub, dark]);
+  ], [codeColor, codeSub, dark, hs.code, hs.hsCode, hs.heading, hs.product, hs.category, hs.industry, hs.codeType, locale]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* HS Code banner — recycled from the AGM-Front dashboard. */}
       <div
         className="group relative overflow-hidden rounded-[14px] border p-4 sm:p-6"
         style={{ borderColor: T.border, backgroundColor: T.surface }}
@@ -142,14 +146,14 @@ export function HsCodesView() {
           className="flex items-center gap-2 rounded-lg border p-6 text-sm"
           style={{ borderColor: T.border, color: T.textMuted, backgroundColor: T.surface }}
         >
-          <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> {cargando ? "Cargando" : ""} HS Codes…
+          <Loader2 className="h-4 w-4 animate-spin" style={{ color: T.accentNavy }} /> {hs.loading}
         </div>
       )}
       {datos && (
         <DataTable
           datos={datos}
           columnas={columnas}
-          titulo={`HS Codes · Harmonized System classification codes`}
+          titulo={`${hs.title} · ${hs.rowsCount.replace("{count}", String(datos.length))}`}
           nombreCSV={`hs_codes_${filters.flow}_${filters.yearStart}-${filters.yearEnd}`}
           centerTitle
           agm

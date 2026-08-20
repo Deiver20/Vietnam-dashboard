@@ -7,6 +7,7 @@ import { EDASeriesPoint, ForecastFrequency } from "@/app/interfaces/trade/projec
 import { formatCIFPrice } from "@/app/lib/functions/formatters";
 import { useScopeLight, chartPalette } from "@/app/lib/functions/chartPalette";
 import { downsampleTo } from "@/app/lib/functions/array";
+import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts";
 import { Loader2 } from "lucide-react";
 
@@ -118,6 +119,7 @@ export const CIFPriceLineChart = memo(function CIFPriceLineChart({ data, loading
                 key={product}
                 type="monotone"
                 dataKey={product}
+                name={translateProduct(product, locale)}
                 stroke={COLORS[i % COLORS.length]}
                 strokeWidth={1.5}
                 dot={false}

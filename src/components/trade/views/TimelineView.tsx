@@ -6,11 +6,16 @@ import { ChartCard } from "@/components/trade/ChartCard";
 import { RibbonChart, LineChart, makeFormatters } from "@/components/trade/charts";
 import { useTimeline } from "@/hooks/trade/useTimeline";
 import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
-import { MESES, RIBBON_PALETTE, YEAR_PALETTE, getUnitLabel } from "@/app/lib/trade/constants";
+import { RIBBON_PALETTE, YEAR_PALETTE, getUnitLabel } from "@/app/lib/trade/constants";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
 import { useDashboard } from "@/store/useDashboard";
+import { getTranslation } from "@/app/utils/translations";
 import { translateCountry } from "@/app/lib/i18n/tradeData";
 import { TradeFilters, TimelineResponse } from "@/app/interfaces/trade/interface";
+
+function formatTemplate(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+}
 
 function countryColor(idx: number): string {
   return RIBBON_PALETTE[idx % RIBBON_PALETTE.length];
@@ -21,6 +26,9 @@ export function TimelineView() {
   const { datos: data } = useDebouncedFilters<TradeFilters, TimelineResponse>(filters, fetcher);
   const T = useTradeTheme();
   const locale = useDashboard((s) => s.locale);
+  const tl = getTranslation(locale).timeline;
+  const tFilters = getTranslation(locale).filters;
+  const MESES = tFilters.monthAbbr;
 
   const unit = useMemo(() => getUnitLabel(), []);
   const formatters = useMemo(() => makeFormatters(unit), [unit]);
@@ -77,27 +85,27 @@ export function TimelineView() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
         <ChartCard
-          title={filters.flow === "imports" ? "Importaciones por país" : "Exportaciones por país"}
-          subtitle="Barras anuales por posición (mayor a menor); las cintas muestran la subida o bajada entre años."
+          title={filters.flow === "imports" ? tl.titleImports : tl.titleExports}
+          subtitle={tl.subtitleRibbon}
         >
           {!data ? (
             <div className="flex h-[420px] items-center justify-center text-gray-4">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : yearlyData.length === 0 ? (
-            <div className="flex h-[420px] items-center justify-center text-sm" style={{ color: T.textMuted }}>Sin datos para los filtros seleccionados.</div>
+            <div className="flex h-[420px] items-center justify-center text-sm" style={{ color: T.textMuted }}>{tl.noData}</div>
           ) : (
             <div className="flex flex-col items-stretch gap-4 md:flex-row">
               <aside
                 className="grid w-full shrink-0 grid-cols-2 gap-1.5 rounded-xs border px-3 py-3 sm:grid-cols-3 md:flex md:w-[200px] md:flex-col md:grid-cols-1"
-                aria-label="Leyenda de países"
+                aria-label={tl.legendAria}
                 style={{ borderColor: T.border, backgroundColor: T.surface }}
               >
                 <h4
                   className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
                   style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", color: T.accentNavy }}
                 >
-                  País de Origen
+                  {tl.legendHeader}
                 </h4>
                 {countrySeries.map(s => (
                   <div
@@ -127,8 +135,8 @@ export function TimelineView() {
         </ChartCard>
 
         <ChartCard
-          title={filters.flow === "imports" ? "Importaciones acumuladas" : "Exportaciones acumuladas"}
-          subtitle={`Cada año reinicia su acumulado en enero (${unit.short}, mes a mes).`}
+          title={filters.flow === "imports" ? tl.titleAccumulatedImports : tl.titleAccumulatedExports}
+          subtitle={formatTemplate(tl.subtitleAccumulated, { short: unit.short })}
         >
           {!data ? (
             <div className="flex h-[420px] items-center justify-center text-gray-4">

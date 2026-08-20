@@ -4,15 +4,16 @@ import { memo, useMemo, useState } from "react";
 import { getTranslation } from "@/app/utils/translations";
 import { useDashboard } from "@/store/useDashboard";
 import { formatUSD } from "@/app/lib/functions/formatters";
+import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { Loader2 } from "lucide-react";
 
 export const SOYBEAN_MEAL_LABEL = "Soybean Meal";
-export const SOYBEAN_MEAL_PROTEIN = 48;
+export const SOYBEAN_MEAL_PROTEIN = 46;
 export const SOYBEAN_MEAL_DIGESTIBILITY = 88;
 export const REFERENCE_PROTEIN = 48;
 
 const PROTEIN_REFERENCE: Record<string, number> = {
-  "Blood meal": 85,
+  "Blood meal": 90,
   "Feather meal": 80,
   "Fish meal": 62,
   "Bovine Meal": 45,
@@ -151,23 +152,27 @@ export const ProteinEconomics = memo(function ProteinEconomics({
 
   return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-white mb-3">Protein Economics</h3>
+      <h3 className="text-sm font-semibold text-white mb-3">{t.eda.proteinEconomics}</h3>
       <table className="w-full text-[11px] border-collapse">
         <thead>
           <tr className="text-left text-gray-5">
-            <th className="font-medium p-1.5">Producto</th>
+            <th className="font-medium p-1.5">{t.eda.proteinProduct}</th>
             <th className="font-medium p-1.5 text-right">CIF USD/MT</th>
+            <th className="font-medium p-1.5 text-right">{t.eda.proteinProt}</th>
+            {mode === "digestible" && (
+              <>
+                <th className="font-medium p-1.5 text-right">{t.eda.proteinDigPercent}</th>
+                <th className="font-medium p-1.5 text-right">{t.eda.proteinProtDig}</th>
+              </>
+            )}
             <th className="font-medium p-1.5 text-right">
-              {mode === "cruda" ? "Prot." : "Prot. Dig."}
+              {mode === "cruda" ? t.eda.proteinUsdPerProt : t.eda.proteinUsdPerDigProt}
             </th>
-            <th className="font-medium p-1.5 text-right">
-              {mode === "cruda" ? "USD / Prot." : "USD / Dig.Prot."}
-            </th>
-            <th className="font-medium p-1.5 text-right">Eq. 48%</th>
+            <th className="font-medium p-1.5 text-right">{t.eda.proteinEq48}</th>
             <th className="p-1.5 text-right">
               <div
                 role="group"
-                aria-label="Modo de proteína"
+                aria-label={t.eda.proteinModeAria}
                 className="inline-flex overflow-hidden rounded-sm border border-navy-line"
               >
                 <button
@@ -176,7 +181,7 @@ export const ProteinEconomics = memo(function ProteinEconomics({
                   aria-pressed={mode === "cruda"}
                   style={toggleBtnStyle(mode === "cruda")}
                 >
-                  Cruda
+                  {t.eda.proteinRaw}
                 </button>
                 <button
                   type="button"
@@ -184,7 +189,7 @@ export const ProteinEconomics = memo(function ProteinEconomics({
                   aria-pressed={mode === "digestible"}
                   style={toggleBtnStyle(mode === "digestible")}
                 >
-                  Digestible
+                  {t.eda.proteinDigestible}
                 </button>
               </div>
             </th>
@@ -193,12 +198,6 @@ export const ProteinEconomics = memo(function ProteinEconomics({
         <tbody>
           {rows.map((row) => {
             const isBest = bestLabel === row.label;
-            const proteinValue =
-              mode === "cruda"
-                ? row.cp.toFixed(0) + "%"
-                : row.digestibleProtein != null
-                ? row.digestibleProtein.toFixed(2) + "%"
-                : "-";
             const usdPerProteinValue =
               mode === "cruda"
                 ? row.usdPerProtein
@@ -208,15 +207,27 @@ export const ProteinEconomics = memo(function ProteinEconomics({
             return (
               <tr key={row.label} className="border-t border-navy-line">
                 <td className="p-1.5 text-gray-3 font-medium">
-                  {row.label}
+                  {translateProduct(row.label, locale)}
                   {isBest && <span className="ml-1.5 text-emerald-400">●</span>}
                 </td>
                 <td className="p-1.5 text-right text-white font-mono">
                   {row.cif != null ? formatUSD(row.cif, 2) : "-"}
                 </td>
                 <td className="p-1.5 text-right text-gray-3 font-mono">
-                  {proteinValue}
+                  {row.cp.toFixed(0)}%
                 </td>
+                {mode === "digestible" && (
+                  <>
+                    <td className="p-1.5 text-right text-gray-3 font-mono">
+                      {row.dig != null ? `${row.dig.toFixed(0)}%` : "-"}
+                    </td>
+                    <td className="p-1.5 text-right text-gray-3 font-mono">
+                      {row.digestibleProtein != null
+                        ? `${row.digestibleProtein.toFixed(2)}%`
+                        : "-"}
+                    </td>
+                  </>
+                )}
                 <td
                   className="p-1.5 text-right font-mono"
                   style={{ color: isBest ? "#34d399" : "#fff" }}

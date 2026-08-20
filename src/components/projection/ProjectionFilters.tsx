@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
+import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { ForecastFrequency, DAILY_HORIZONS, MONTHLY_HORIZONS } from "@/app/interfaces/trade/projection";
 import { ChevronDown, Loader2 } from "lucide-react";
 
@@ -96,7 +97,7 @@ export function ProjectionFilters({
             ) : (
               productsAvailable.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {translateProduct(p, locale)}
                 </option>
               ))
             )}

@@ -10,11 +10,13 @@ import { useDebouncedFilters } from "@/hooks/trade/useDebouncedFilters";
 import { getUnitLabel } from "@/app/lib/trade/constants";
 import { makeFormatters } from "@/components/trade/charts";
 import { useTradeTheme } from "@/components/trade/TradeThemeContext";
+import { useDashboard } from "@/store/useDashboard";
 import { TradeFilters, HierarchyRow, HierarchyDimension, HierarchyMetric } from "@/app/interfaces/trade/interface";
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "/api";
 
-const DEFAULT_DIMENSIONS: HierarchyDimension[] = ["categoria", "producto", "country", "empresa", "aduana"];
+const DEFAULT_DIMENSIONS_BASE: HierarchyDimension[] = ["categoria", "producto", "country", "importador", "aduana"];
+const DEFAULT_DIMENSIONS_EXPORTS: HierarchyDimension[] = ["categoria", "producto", "country", "exportador", "aduana"];
 const MAP_DIMENSIONS: HierarchyDimension[] = ["exportador", "importador", "country"];
 
 type Vista = "jerarquia" | "mapa";
@@ -29,7 +31,9 @@ async function fetchJson<T>(path: string): Promise<T> {
 }
 
 export function OperationsView() {
-  const [dimensions, setDimensions] = useState<HierarchyDimension[]>(DEFAULT_DIMENSIONS);
+  const flow = useDashboard((s) => s.filters.flow);
+  const initialDimensions = flow === "exports" ? DEFAULT_DIMENSIONS_EXPORTS : DEFAULT_DIMENSIONS_BASE;
+  const [dimensions, setDimensions] = useState<HierarchyDimension[]>(initialDimensions);
   const [metric, setMetric] = useState<HierarchyMetric>("volumenKg");
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [availableYears, setAvailableYears] = useState<number[]>([]);
