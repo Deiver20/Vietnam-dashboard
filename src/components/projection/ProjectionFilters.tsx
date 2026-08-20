@@ -5,7 +5,7 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { translateProduct } from "@/app/lib/i18n/tradeData";
 import { ForecastFrequency, DAILY_HORIZONS, MONTHLY_HORIZONS } from "@/app/interfaces/trade/projection";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, Filter, Loader2 } from "lucide-react";
 
 interface ProjectionFiltersProps {
   productsAvailable: string[];
@@ -60,14 +60,23 @@ export function ProjectionFilters({
   const horizons = frequency === "D" ? DAILY_HORIZONS : MONTHLY_HORIZONS;
   const horizonUnit = frequency === "D" ? t.projection.horizonDays : t.projection.horizonMonths;
 
+  const selectStyle: React.CSSProperties = {
+    appearance: "none",
+    backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%23cbd5e8' d='M0 0l5 6 5-6z'/></svg>\")",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center",
+    paddingRight: "32px",
+  };
+
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-4 mb-6">
+    <div className="bg-navy-card/80 backdrop-blur-sm border border-navy-line rounded-lg p-3 sm:p-4 mb-6 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-4">
-          {t.filters.title}
-        </h3>
-        {loading && <Loader2 className="w-3 h-3 animate-spin text-gray-4" />}
+          <div className="p-1.5 rounded-sm bg-blue/10">
+            <Filter className="w-4 h-4 text-blue-soft" />
+          </div>
+          <h3 className="text-sm font-semibold text-white">{t.filters.title}</h3>
+          {loading && <Loader2 className="w-3 h-3 animate-spin text-gray-4" />}
         </div>
         <button
           type="button"
@@ -80,8 +89,8 @@ export function ProjectionFilters({
           <ChevronDown className={`h-3.5 w-3.5 transition-transform ${mobileOpen ? "rotate-180" : ""}`} />
         </button>
       </div>
-      <div id="projection-filters-panel" className={`${mobileOpen ? "block" : "hidden"} mt-4 md:block`}>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5 md:gap-4">
+      <div id="projection-filters-panel" className={`${mobileOpen ? "block" : "hidden"} mt-4 md:mt-4 md:block`}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 sm:gap-4">
         <div>
           <label className="block text-[11px] text-gray-4 uppercase tracking-wider font-semibold mb-1.5">
             {t.projection.product}
@@ -90,6 +99,7 @@ export function ProjectionFilters({
             value={selectedProduct}
             onChange={(e) => onProductChange(e.target.value)}
             disabled={loading || productsAvailable.length === 0}
+            style={selectStyle}
             className="w-full bg-navy-darker border border-navy-line rounded-sm px-3 py-2 text-sm text-white hover:border-blue/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue/30 transition-all disabled:opacity-60"
           >
             {productsAvailable.length === 0 ? (
@@ -115,6 +125,7 @@ export function ProjectionFilters({
               onYearChange(e.target.value === "all" ? null : parseInt(e.target.value))
             }
             disabled={loading}
+            style={selectStyle}
             className="w-full bg-navy-darker border border-navy-line rounded-sm px-3 py-2 text-sm text-white hover:border-blue/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue/30 transition-all disabled:opacity-60"
           >
             <option value="all">{t.filters.all}</option>
@@ -138,6 +149,7 @@ export function ProjectionFilters({
               onMonthChange(e.target.value === "all" ? null : parseInt(e.target.value))
             }
             disabled={loading}
+            style={selectStyle}
             className="w-full bg-navy-darker border border-navy-line rounded-sm px-3 py-2 text-sm text-white hover:border-blue/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue/30 transition-all disabled:opacity-60"
           >
             <option value="all">{t.filters.allMonths}</option>
