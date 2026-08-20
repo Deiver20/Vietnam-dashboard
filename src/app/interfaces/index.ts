@@ -95,6 +95,7 @@ export interface Translation {
     proteinUsdPerProt: string;
     proteinUsdPerDigProt: string;
     proteinEq48: string;
+    proteinEconomicsHint: string;
     proteinModeAria: string;
     proteinRaw: string;
     proteinDigestible: string;

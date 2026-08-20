@@ -5,12 +5,13 @@ import { getTranslation } from "@/app/utils/translations";
 import { useDashboard } from "@/store/useDashboard";
 import { formatUSD } from "@/app/lib/functions/formatters";
 import { translateProduct } from "@/app/lib/i18n/tradeData";
+import { HintIcon } from "@/components/ui/HintIcon";
 import { Loader2 } from "lucide-react";
 
 export const SOYBEAN_MEAL_LABEL = "Soybean Meal";
 export const SOYBEAN_MEAL_PROTEIN = 46;
 export const SOYBEAN_MEAL_DIGESTIBILITY = 88;
-export const REFERENCE_PROTEIN = 48;
+export const REFERENCE_PROTEIN = 46;
 
 const PROTEIN_REFERENCE: Record<string, number> = {
   "Blood meal": 90,
@@ -151,10 +152,13 @@ export const ProteinEconomics = memo(function ProteinEconomics({
     transition: "all 150ms ease",
   });
 
-  return (
+    return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-        <h3 className="text-sm font-semibold text-white">{t.eda.proteinEconomics}</h3>
+        <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+          {t.eda.proteinEconomics}
+          <HintIcon text={t.eda.proteinEconomicsHint} />
+        </h3>
         <div
           role="group"
           aria-label={t.eda.proteinModeAria}
