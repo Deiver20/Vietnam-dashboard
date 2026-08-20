@@ -13,8 +13,6 @@ interface CIFPriceHeatmapProps {
   productsAvailable: string[];
 }
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
 function colorScale(value: number, min: number, max: number): string {
   if (min === max) return "rgba(0, 102, 255, 0.5)";
   const t = (value - min) / (max - min);
@@ -76,6 +74,7 @@ function useHeatmap(data: EDASeriesPoint[]) {
 export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, productsAvailable }: CIFPriceHeatmapProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
+  const MONTH_LABELS = t.filters.monthAbbr;
 
   const { years, months, matrix, minVal, maxVal } = useHeatmap(data);
 
@@ -97,10 +96,10 @@ export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, pr
   }
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex-1 min-h-0 flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex flex-col">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceHeatmap}</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[10px] border-collapse">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+        <table className="w-full min-w-[520px] text-[10px] border-collapse">
           <thead>
             <tr>
               <th className="text-left text-gray-4 font-medium p-1">{t.eda.heatmapYear} \\ {t.eda.heatmapMonth}</th>

@@ -35,11 +35,11 @@ function ExternalChart({ data, pal, t, expandable }: {
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
+      <ComposedChart data={data} margin={{ top: 16, right: 12, left: 5, bottom: 0 }}>
         <CartesianGrid stroke={pal.grid} strokeDasharray="3 3" />
         <XAxis dataKey="date" stroke={pal.axis} fontSize={expandable ? 12 : 10} minTickGap={32} tickFormatter={(v) => v.slice(0, 7)} />
-        <YAxis yAxisId="left" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => formatUSD(v, 0)} width={expandable ? 70 : 40} />
-        <YAxis yAxisId="right" orientation="right" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => `${v.toFixed(0)} $/MT`} width={expandable ? 90 : 50} />
+        <YAxis yAxisId="left" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => formatUSD(v, 0)} width={expandable ? 72 : 58} />
+        <YAxis yAxisId="right" orientation="right" stroke={pal.axis} fontSize={expandable ? 12 : 10} tickFormatter={(v: number) => `${v.toFixed(0)} $/MT`} width={expandable ? 92 : 68} />
         <Tooltip
           contentStyle={{ background: pal.tooltipBg, border: `1px solid ${pal.tooltipBorder}`, borderRadius: 6, fontSize: 12 }}
           labelStyle={{ color: pal.tooltipLabel }}

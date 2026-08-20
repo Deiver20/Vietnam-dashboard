@@ -142,9 +142,10 @@ export const ProteinEconomics = memo(function ProteinEconomics({
 
   const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
     fontFamily: "var(--font-poppins), Poppins, sans-serif",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 600,
-    padding: "3px 8px",
+    padding: "6px 12px",
+    minHeight: 32,
     backgroundColor: active ? "var(--color-blue)" : "transparent",
     color: active ? "#ffffff" : "#94a3b8",
     transition: "all 150ms ease",
@@ -152,8 +153,33 @@ export const ProteinEconomics = memo(function ProteinEconomics({
 
   return (
     <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5">
-      <h3 className="text-sm font-semibold text-white mb-3">{t.eda.proteinEconomics}</h3>
-      <table className="w-full text-[11px] border-collapse">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h3 className="text-sm font-semibold text-white">{t.eda.proteinEconomics}</h3>
+        <div
+          role="group"
+          aria-label={t.eda.proteinModeAria}
+          className="inline-flex self-start sm:self-auto overflow-hidden rounded-sm border border-navy-line"
+        >
+          <button
+            type="button"
+            onClick={() => setMode("cruda")}
+            aria-pressed={mode === "cruda"}
+            style={toggleBtnStyle(mode === "cruda")}
+          >
+            {t.eda.proteinRaw}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("digestible")}
+            aria-pressed={mode === "digestible"}
+            style={toggleBtnStyle(mode === "digestible")}
+          >
+            {t.eda.proteinDigestible}
+          </button>
+        </div>
+      </div>
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+      <table className="w-full min-w-[520px] text-[11px] border-collapse">
         <thead>
           <tr className="text-left text-gray-5">
             <th className="font-medium p-1.5">{t.eda.proteinProduct}</th>
@@ -169,30 +195,6 @@ export const ProteinEconomics = memo(function ProteinEconomics({
               {mode === "cruda" ? t.eda.proteinUsdPerProt : t.eda.proteinUsdPerDigProt}
             </th>
             <th className="font-medium p-1.5 text-right">{t.eda.proteinEq48}</th>
-            <th className="p-1.5 text-right">
-              <div
-                role="group"
-                aria-label={t.eda.proteinModeAria}
-                className="inline-flex overflow-hidden rounded-sm border border-navy-line"
-              >
-                <button
-                  type="button"
-                  onClick={() => setMode("cruda")}
-                  aria-pressed={mode === "cruda"}
-                  style={toggleBtnStyle(mode === "cruda")}
-                >
-                  {t.eda.proteinRaw}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode("digestible")}
-                  aria-pressed={mode === "digestible"}
-                  style={toggleBtnStyle(mode === "digestible")}
-                >
-                  {t.eda.proteinDigestible}
-                </button>
-              </div>
-            </th>
           </tr>
         </thead>
         <tbody>
@@ -239,12 +241,12 @@ export const ProteinEconomics = memo(function ProteinEconomics({
                 <td className="p-1.5 text-right text-white font-mono">
                   {eq48Value != null ? formatUSD(eq48Value, 2) : "-"}
                 </td>
-                <td className="p-1.5"></td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 });

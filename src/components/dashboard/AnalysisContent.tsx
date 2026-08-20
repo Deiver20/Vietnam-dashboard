@@ -148,8 +148,8 @@ export function AnalysisContent({
           </div>
 
           <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-6">
-            <div className="min-w-0 flex flex-col gap-4 h-[clamp(340px,72vw,440px)]">
-              <DeferredMount delay={120} fallback={<ChartSkeleton className="flex-1 min-h-0" />}>
+            <div className="min-w-0 flex flex-col gap-4 xl:h-[clamp(340px,72vw,440px)]">
+              <DeferredMount delay={120} fallback={<ChartSkeleton className="h-[300px] xl:flex-1 xl:min-h-0" />}>
                 <CIFPriceHeatmap data={series} loading={edaLoading} productsAvailable={analysisProducts} />
               </DeferredMount>
               <ProteinEconomics
