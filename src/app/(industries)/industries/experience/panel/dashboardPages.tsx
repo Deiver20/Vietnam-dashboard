@@ -13,7 +13,13 @@ import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { Locale } from "@/app/interfaces";
 import { IndustriesAiPanel } from "../aiPanel/IndustriesAiPanel";
-import { hexToRgb } from "@/app/(dashboard)/dashboard/chartHelpers";
+function hexToRgb(hex: string): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `${r},${g},${b}`;
+}
 import PageIcon from "@/components/dashboard/PageIcon";
 import { Flag } from "@/components/ui/Flag";
 import { IndustriesTabContent } from "./IndustriesTabContent";

@@ -3,6 +3,11 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Touch-target variant: `coarse:` applies only on coarse-pointer devices
+   (fingers). Convention: interactive elements smaller than 44px get
+   coarse:min-h-11 / padding bumps so desktop stays pixel-identical while
+   touch devices meet the 44px minimum. */
+@custom-variant coarse (@media (pointer: coarse));
 
 @font-face {
   font-family: "pmzd";
@@ -488,3 +493,205 @@ em.acc {
     @apply bg-transparent! dark:invert;
   }
 }
+
+/* ── MARKETING / AGM-Front additions ───────────────────────────────
+   Classes and animations added for the AGM-Front marketing experience
+   (marketplace, news, events, pricing, search, marketing shell). They
+   coexist with the trade shadcn tokens above; the .dash-dark-remap /
+   .dash-light-remap blocks are also used by the immersive /dashboard
+   pages. */
+
+/* Ticker animation */
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Entry animations */
+.fade-up {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.fade-up.in-view {
+  opacity: 1;
+  transform: none;
+}
+
+/* Scroll cue */
+@keyframes scrollCue {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(14px); opacity: 0; }
+}
+
+/* Map pulse */
+@keyframes mapPulse {
+  0%   { transform: scale(0.4); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Search glow */
+@keyframes searchGlow {
+  0%,100% { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 0 rgba(0,102,255,0.15); }
+  50%      { box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 20px 4px rgba(0,102,255,0.18); }
+}
+
+/* Hero star twinkle */
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+
+/* Marketplace map */
+@keyframes lineFlow {
+  to { stroke-dashoffset: -200; }
+}
+@keyframes lineDraw {
+  from { stroke-dashoffset: 600; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes markerPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes panelIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes panelInMobile {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+/* Mobile nav drawer (slides in from the right edge). */
+@keyframes panelInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.mkt-line {
+  stroke-dasharray: 5 7;
+  animation: lineDraw 1s ease-out forwards, lineFlow 4s linear 1s infinite;
+}
+.mkt-grab { cursor: grab; }
+.mkt-grab:active { cursor: grabbing; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.mkt-panel { animation: panelIn 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+@media (max-width: 760px) {
+  .mkt-panel { animation: panelInMobile 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+}
+
+/* Satellite strong pulse */
+@keyframes strongPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(253,224,71,0.95);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(0.6);
+    box-shadow: 0 0 2px rgba(253,224,71,0.3);
+  }
+}
+
+/* Data feature: card entry + pulse + hidden scrollbar */
+@keyframes mktCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes mktPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── Standalone /dashboard dark chrome remap ──
+   The dashboard pages keep their light Tailwind chrome by default; this
+   class remaps that chrome to translucent dark-blur surfaces. Twin of the
+   styled-components override inside the /industries Level-4 host
+   (panel/dashboardPages.tsx Body) — keep the two in sync. */
+.dash-dark-remap .bg-white {
+  background: rgba(4, 16, 32, 0.62) !important;
+  backdrop-filter: blur(14px);
+}
+.dash-dark-remap .border-gray-200 { border-color: rgba(102, 166, 255, 0.18) !important; }
+.dash-dark-remap .border-gray-100 { border-color: rgba(102, 166, 255, 0.10) !important; }
+.dash-dark-remap .text-gray-900,
+.dash-dark-remap .text-gray-800,
+.dash-dark-remap .text-gray-700 { color: #e8eefc !important; }
+.dash-dark-remap .text-gray-600,
+.dash-dark-remap .text-gray-500 { color: #9aa7bd !important; }
+.dash-dark-remap .text-gray-400 { color: #7d8aa0 !important; }
+.dash-dark-remap .text-gray-100 { color: rgba(255, 255, 255, 0.07) !important; }
+.dash-dark-remap .bg-gray-50 { background: rgba(255, 255, 255, 0.04) !important; }
+.dash-dark-remap .bg-gray-100 { background: rgba(255, 255, 255, 0.06) !important; }
+.dash-dark-remap [class*="hover:bg-gray-50"]:hover { background: rgba(255, 255, 255, 0.05) !important; }
+.dash-dark-remap .shadow-sm { box-shadow: 0 0 24px rgba(0, 40, 90, 0.25) !important; }
+
+/* Light twin of the block above: the standalone /dashboard's light mode
+   sits on a backdrop IMAGE (not a plain page), so the same white card
+   chrome turns to frosted glass — translucent + blur — for contrast over
+   the scenery, exactly like the dark remap does for dark mode. */
+.dash-light-remap .bg-white {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(14px);
+}
+
+/* Dashboard maps */
+.route-flow {
+  animation-name: routeDash;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes routeDash {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+@keyframes routeHubPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+@keyframes dashMapPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Trade scope dark — companion to .trade-scope-light. Defensive: the
+   immersive shell applies dark by default (dashboardDark=true), and an
+   explicit .trade-scope-dark class keeps the navy palette stable if the
+   host markup wants to opt-in. */
+.trade-scope-dark {
+  --color-navy-card: var(--color-navy-card);
+  --color-navy-deep: var(--color-navy-deep);
+  --color-navy-darker: var(--color-navy-darker);
+  --color-navy-mid: var(--color-navy-mid);
+  --color-navy-line: var(--color-navy-line);
+  --color-blue: var(--color-blue);
+  --color-blue-2: var(--color-blue-2);
+  --color-blue-soft: var(--color-blue-soft);
+  --color-blue-deep: var(--color-blue-deep);
+}
+
+/* Link helpers (marketing pages) */
+.link { color: var(--color-blue-soft); font-weight: 500; transition: opacity 0.2s; }
+.link:hover { opacity: 0.75; }
+.link--white { color: #ffffff; }

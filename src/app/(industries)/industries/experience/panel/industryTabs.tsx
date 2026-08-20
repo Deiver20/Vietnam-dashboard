@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { gsap } from "gsap";
 import useMoveTo from "@/hooks/useMoveTo";
-import DataViewSwitch from "@/app/(main)/data/components/DataViewSwitch";
+import DataViewSwitch from "./DataViewSwitch";
 import { getIndustries, getIndustry, getCountryDossier } from "../data/api";
 import { getCountryFlag } from "../data/countryFlags";
 import { getCountryName } from "../data/world";
