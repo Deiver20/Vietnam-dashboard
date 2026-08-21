@@ -115,41 +115,80 @@ export function InsightsView() {
 
   const backendBase = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000/api";
 
-  const fetchInsights = useCallback(
-    async (force = false) => {
-      if (!metrics) return;
-      const key = JSON.stringify({ filters, locale });
-      if (!force && lastFiltersRef.current === key && aiInsights.length > 0) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(`${backendBase}/trade/insights`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filters, locale, forceRefresh: force }),
-        });
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`HTTP ${res.status}: ${txt.slice(0, 300)}`);
-        }
-        const json = await res.json();
-        const data = (json.data ?? json.insights ?? []) as Array<{ id: string; title: string; description: string; badge: string; timestamp?: string }>;
-        setAiInsights(data);
-        lastFiltersRef.current = key;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoading(false);
+  const filtersToQuery = useCallback((f: typeof filters, loc: string) => {
+    const p = new URLSearchParams();
+    if (f.countryCode) p.set("countryCode", String(f.countryCode));
+    if (f.flow) p.set("flow", String(f.flow));
+    if (f.industry) p.set("industry", String(f.industry));
+    if (Array.isArray(f.category) && f.category.length) p.set("category", f.category.join(","));
+    if (Array.isArray(f.product) && f.product.length) p.set("product", f.product.join(","));
+    if (Array.isArray(f.originCountry) && f.originCountry.length) p.set("originCountry", f.originCountry.join(","));
+    if (Array.isArray(f.customs) && f.customs.length) p.set("customs", f.customs.join(","));
+    if (f.importer) p.set("importer", String(f.importer));
+    if (f.exporter) p.set("exporter", String(f.exporter));
+    if (f.yearStart) p.set("yearStart", String(f.yearStart));
+    if (f.yearEnd) p.set("yearEnd", String(f.yearEnd));
+    if (Array.isArray(f.years) && f.years.length) p.set("years", f.years.join(","));
+    if (Array.isArray(f.fraccion) && f.fraccion.length) p.set("fraccion", f.fraccion.join(","));
+    if (Array.isArray(f.meses) && f.meses.length) p.set("meses", f.meses.join(","));
+    p.set("locale", loc);
+    return p.toString();
+  }, []);
+
+  const fetchSaved = useCallback(async () => {
+    if (!metrics) return;
+    const key = JSON.stringify({ filters, locale });
+    if (lastFiltersRef.current === key && aiInsights.length > 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = filtersToQuery(filters, locale);
+      const res = await fetch(`${backendBase}/trade/insights?${qs}`, { method: "GET" });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 300)}`);
       }
-    },
-    [filters, locale, metrics, backendBase, aiInsights.length]
-  );
+      const json = await res.json();
+      const data = (json.data ?? []) as Array<{ id: string; title: string; description: string; badge: string; timestamp?: string }>;
+      setAiInsights(data);
+      lastFiltersRef.current = key;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, locale, metrics, backendBase, aiInsights.length, filtersToQuery]);
+
+  const generateInsights = useCallback(async () => {
+    if (!metrics) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${backendBase}/trade/insights`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filters, locale, forceRefresh: true }),
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${txt.slice(0, 300)}`);
+      }
+      const json = await res.json();
+      const data = (json.data ?? []) as Array<{ id: string; title: string; description: string; badge: string; timestamp?: string }>;
+      setAiInsights(data);
+      lastFiltersRef.current = JSON.stringify({ filters, locale });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, locale, metrics, backendBase]);
 
   useEffect(() => {
-    if (metrics && aiInsights.length === 0 && !loading && !error) {
-      fetchInsights(false);
+    if (metrics) {
+      fetchSaved();
     }
-  }, [metrics, aiInsights.length, loading, error, fetchInsights]);
+  }, [metrics, fetchSaved]);
 
   if (!metrics) {
     return (
@@ -224,7 +263,7 @@ export function InsightsView() {
               <div className={`text-[10px] leading-tight ${textTert}`}>{d.aiHint}</div>
             </div>
             <button
-              onClick={() => fetchInsights(true)}
+              onClick={generateInsights}
               disabled={loading}
               className="shrink-0 ml-2 inline-flex items-center gap-1.5 rounded-lg bg-[#227BFF] hover:bg-[#1B66D9] disabled:opacity-60 disabled:cursor-not-allowed text-white px-3 py-1.5 text-[11px] font-semibold transition-colors"
             >
@@ -243,13 +282,13 @@ export function InsightsView() {
               <div className={`rounded-lg border p-3 text-xs ${dark ? "bg-red-500/10 border-red-500/20 text-red-300" : "bg-red-50 border-red-200 text-red-700"}`}>
                 <div className="font-semibold">Error IA</div>
                 <div className="mt-1 break-words">{error}</div>
-                <button onClick={() => fetchInsights(true)} className="mt-2 rounded bg-[#227BFF] text-white px-3 py-1 text-xs">Reintentar</button>
+                <button onClick={generateInsights} className="mt-2 rounded bg-[#227BFF] text-white px-3 py-1 text-xs">Reintentar</button>
               </div>
             ) : aiInsights.length === 0 ? (
               <div className={`flex flex-col items-center justify-center py-6 text-center ${muted}`}>
                 <Sparkles className={`w-8 h-8 mb-2 ${dark ? "text-white/40" : "text-gray-400"}`} />
                 <p className="text-xs px-4">{d.noInsights}</p>
-                <button onClick={() => fetchInsights(true)} className="mt-3 rounded-lg bg-[#227BFF] text-white px-4 py-2 text-xs font-semibold">{d.generate}</button>
+                <button onClick={generateInsights} className="mt-3 rounded-lg bg-[#227BFF] text-white px-4 py-2 text-xs font-semibold">{d.generate}</button>
               </div>
             ) : (
               <div className="space-y-2.5">
