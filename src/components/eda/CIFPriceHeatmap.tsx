@@ -96,9 +96,9 @@ export const CIFPriceHeatmap = memo(function CIFPriceHeatmap({ data, loading, pr
   }
 
   return (
-    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex flex-col">
+    <div className="bg-navy-card border border-navy-line rounded-lg p-4 sm:p-5 flex flex-col xl:flex-1 xl:min-h-0">
       <h3 className="text-sm font-semibold text-white mb-3">{t.eda.cifPriceHeatmap}</h3>
-      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+      <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0 xl:flex-1 xl:min-h-0">
         <table className="w-full min-w-[520px] text-[10px] border-collapse">
           <thead>
             <tr>
