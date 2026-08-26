@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { useTradeData } from "@/hooks/trade/useTradeData";
 import { useTotalImportsMonthly } from "@/hooks/trade/useTotalImportsMonthly";
 import { useTabYearDefaults } from "@/hooks/trade/useTabYearDefaults";
-import { getPaisCode, getIndustryCode } from "@/app/lib/trade/countryMapping";
-import type { Flow } from "@/app/interfaces/trade/interface";
 import { GlobalFilters } from "@/components/filters/GlobalFilters";
 import { ImportsByCountryChart } from "@/components/dashboard/ImportsByCountryChart";
 import { ImportsByImporterChart } from "@/components/dashboard/ImportsByImporterChart";
@@ -39,7 +37,6 @@ interface IndustriesTabContentProps {
 export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
   const locale = useDashboard((s) => s.locale);
   const filters = useDashboard((s) => s.filters);
-  const setFilters = useDashboard((s) => s.setFilters);
   const t = getTranslation(locale);
 
   // La pestaña de Proyección de Precios tiene su propio origen de datos
@@ -62,31 +59,9 @@ export function IndustriesTabContent({ tabId }: IndustriesTabContentProps) {
   const supportedFlow =
     (dataType ?? "imports") === "imports" || (dataType ?? "imports") === "exports";
 
-  // Sincroniza el país/industria/flujo del shell hacia los filtros del
-  // dashboard. Al cambiar de país se limpian los filtros de alcance para que
-  // la data de un país no se aplique a otro.
-  const selectedCountryId = useIndustriesStore((s) => s.selectedCountryId);
-  const selectedIndustryId = useIndustriesStore((s) => s.selectedIndustryId);
-  useEffect(() => {
-    const countryCode = getPaisCode(selectedCountryId);
-    const industry = getIndustryCode(selectedIndustryId);
-    const flow: Flow = dataType === "exports" ? "exports" : "imports";
-    setFilters((prev) => {
-      const countryChanged = prev.countryCode !== countryCode || prev.flow !== flow;
-      const base = { ...prev, countryCode, industry, flow };
-      if (!countryChanged) return base;
-      return {
-        ...base,
-        category: [],
-        product: [],
-        originCountry: [],
-        customs: [],
-        importer: "",
-        exporter: "",
-        years: [],
-      };
-    });
-  }, [selectedCountryId, selectedIndustryId, dataType, setFilters]);
+  // País/industria/flujo ya llegan sincronizados a filters desde
+  // DashboardPages (se monta siempre, Cover incluido) -- ver el useEffect
+  // ahi mismo para el porque se movio fuera de este componente.
 
   // Default del rango de años por pestaña (últimos 3 / últimos 5 / completo del
   // país) y subida del año inicial al mínimo del país al cambiar de país. Ver

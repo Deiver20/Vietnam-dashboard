@@ -70,7 +70,7 @@ export function RightPanel({ overview, totals, timeline }: RightPanelProps) {
             <InsightsView overview={overview} totals={totals} timeline={timeline} />
           </div>
         ) : (
-          <ChatView overview={overview} totals={totals} />
+          <ChatView />
         )}
       </div>
     </aside>

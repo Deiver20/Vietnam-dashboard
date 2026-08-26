@@ -3,13 +3,6 @@
 import { useMemo } from "react";
 import { useAiPanelEnv } from "./env";
 
-export interface InsightItem {
-  id: string;
-  title: string;
-  description: string;
-  badge: "success" | "warning" | "info" | "danger" | "opportunity";
-}
-
 function cagr(first: number, last: number, years: number) {
   if (first <= 0 || last <= 0 || years <= 0) return null;
   return (Math.pow(last / first, 1 / years) - 1) * 100;
@@ -65,7 +58,7 @@ export interface DeepMetrics {
   cheapest: { country: string; totalMt: number; totalCif: number } | null;
 }
 
-export function useInsights(): { insights: InsightItem[]; metrics: DeepMetrics | null } {
+export function useInsights(): { metrics: DeepMetrics | null } {
   const { overview, totals, timeline } = useAiPanelEnv();
 
   const metrics = useMemo<DeepMetrics | null>(() => {
@@ -169,57 +162,5 @@ export function useInsights(): { insights: InsightItem[]; metrics: DeepMetrics |
     };
   }, [overview, totals, timeline]);
 
-  const insights = useMemo<InsightItem[]>(() => {
-    if (!metrics) return [];
-    const items: InsightItem[] = [];
-    const m = metrics;
-    items.push({
-      id: "scale",
-      title: `Scale · ${m.countries} origins · ${m.records.toLocaleString()} ops`,
-      description: `${m.totalVolume.toLocaleString("en-US", { maximumFractionDigits: 0 })} mt · $${(m.totalCif / 1_000_000).toFixed(1)}M CIF · avg ${m.avgPrice.toFixed(0)} $/mt. CAGR ${m.cagrVal !== null ? `${m.cagrVal > 0 ? "+" : ""}${m.cagrVal.toFixed(1)}%` : "-"} across ${m.tl.length} years.`,
-      badge: "info",
-    });
-    const concBadge = m.top1Share >= 50 ? "danger" : m.top1Share >= 30 ? "warning" : "success";
-    items.push({
-      id: "concentration",
-      title: `Concentration · ${m.topCountry?.country ?? "-"} ${m.top1Share.toFixed(1)}%`,
-      description: `Top 3 ${m.top3Share.toFixed(1)}% (HHI≈${m.hhi.toFixed(0)} — ${m.hhi > 2500 ? "concentrated" : m.hhi > 1500 ? "moderate" : "diversified"}). ${m.top1Share >= 50 ? "Critical single-origin exposure." : m.top3Share >= 70 ? "Tight 3-origin oligopoly." : "Diversified base — room to arbitrage."}`,
-      badge: concBadge as InsightItem["badge"],
-    });
-    if (m.lastYoy !== null) {
-      items.push({
-        id: "momentum",
-        title: `Momentum · ${m.last?.year ?? ""} ${m.lastYoy > 0 ? "+" : ""}${m.lastYoy.toFixed(1)}% YoY`,
-        description: `${m.momentum !== null ? `${Math.abs(m.momentum).toFixed(1)}pp ${m.momentum > 0 ? "above" : "below"} CAGR` : ""} · σ YoY ${m.volSigma.toFixed(1)}pp · peak ${m.peak?.year} vs trough ${m.trough?.year}.`,
-        badge: m.lastYoy >= 0 ? "success" : "warning",
-      });
-    }
-    items.push({
-      id: "pricing",
-      title: `Pricing · ${m.avgPrice.toFixed(0)} $/mt CIF`,
-      description: `Trend ${m.priceTrend > 0 ? "+" : ""}${m.priceTrend.toFixed(1)}% since ${m.priceByYear[0]?.year ?? ""} · spread CIF–FOB ${m.spreadPct.toFixed(1)}% · priciest ${m.mostValuable?.country ?? "-"} vs cheapest ${m.cheapest?.country ?? "-"}.`,
-      badge: Math.abs(m.priceTrend) > 8 ? "warning" : "info",
-    });
-    items.push({
-      id: "ops",
-      title: `Operations · ${m.avgShipmentMt.toFixed(1)} mt / op`,
-      description: `${m.recordsPerCountry.toFixed(0)} ops / country · ${m.importers || "-"} importers (${m.volPerImporter ? `${m.volPerImporter.toFixed(0)} mt/importer` : ""}) · ${m.products || "-"} products · ticket ${m.avgShipmentMt < 20 ? "small (fragmented)" : m.avgShipmentMt > 45 ? "large (scale leverage)" : "mid-size"}.`,
-      badge: "info",
-    });
-    const outlookBadge = m.cagrVal !== null && m.cagrVal > 2 ? "opportunity" : m.cagrVal !== null && m.cagrVal < -1 ? "danger" : "info";
-    items.push({
-      id: "outlook",
-      title: m.cagrVal !== null && m.cagrVal > 2 ? "Outlook · Expansion" : m.cagrVal !== null && m.cagrVal < -1 ? "Outlook · Contraction" : "Outlook · Sideways",
-      description:
-        m.cagrVal !== null && m.cagrVal > 2
-          ? "Sustained expansion — lock multi-origin coverage and tier annual volume by price."
-          : m.cagrVal !== null && m.cagrVal < -1
-          ? "Structural contraction — rebalance to cheaper origin and SKU mix."
-          : "Play origin-price spread and ticket efficiency to take share without price war.",
-      badge: outlookBadge as InsightItem["badge"],
-    });
-    return items;
-  }, [metrics]);
-
-  return { insights, metrics };
+  return { metrics };
 }

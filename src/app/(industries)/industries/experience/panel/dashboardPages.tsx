@@ -8,7 +8,8 @@ import { VARIABLES } from "./dataCarousel";
 import { getCountryDossier } from "../data/api";
 import { getCountryFlag } from "../data/countryFlags";
 import { DATA_PAGE_COUNT, useIndustriesStore } from "../stores";
-import { DASHBOARD_TABS } from "@/app/interfaces/trade/interface";
+import { DASHBOARD_TABS, Flow } from "@/app/interfaces/trade/interface";
+import { getPaisCode, getIndustryCode } from "@/app/lib/trade/countryMapping";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
 import { Locale } from "@/app/interfaces";
@@ -353,7 +354,7 @@ function LanguageSelector({ dark }: { dark: boolean }) {
         <div
           role="listbox"
           aria-label="Language"
-          className={`absolute right-0 top-full mt-1.5 min-w-[140px] rounded-lg border backdrop-blur-md overflow-hidden z-50 ${
+          className={`absolute right-0 top-full mt-1.5 min-w-[140px] rounded-lg border backdrop-blur-md overflow-hidden z-[100] ${
             dark
               ? "bg-[#030f1c] border-white/[0.12] shadow-[0_8px_28px_rgba(0,0,0,0.5)]"
               : "bg-white border-black/[0.08] shadow-[0_8px_28px_rgba(0,0,0,0.15)]"
@@ -573,6 +574,7 @@ export default function DashboardPages() {
   const dark = useIndustriesStore((s) => s.dashboardDark);
   const toggleDashboardDark = useIndustriesStore((s) => s.toggleDashboardDark);
   const locale = useDashboard((s) => s.locale);
+  const setFilters = useDashboard((s) => s.setFilters);
   const t = getTranslation(locale);
   const wrapRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -587,6 +589,38 @@ export default function DashboardPages() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [mobileNavOpen]);
+
+  /* Sincroniza el país/industria/flujo del shell hacia los filtros globales
+     del dashboard tan pronto se entra al tablero -- antes vivía dentro de
+     IndustriesTabContent, que solo se monta fuera de la pestaña Cover, así
+     que el panel de Insights (que lee filters.countryCode/flow/industry
+     desde este mismo store, incluso en Cover) seguía mostrando el país
+     anterior hasta que el usuario entraba a otra pestaña (Imports Overview,
+     Price Trend, etc.) y recién ahí se disparaba este efecto. Moverlo aquí
+     -- que se monta siempre que hay dossier, Cover incluido -- corrige eso.
+     Al cambiar de país se limpian los filtros de alcance para que la data
+     de un país no se aplique a otro. */
+  useEffect(() => {
+    if (!countryId || !industryId) return;
+    const paisCode = getPaisCode(countryId);
+    const industry = getIndustryCode(industryId);
+    const flow: Flow = dataType === "exports" ? "exports" : "imports";
+    setFilters((prev) => {
+      const countryChanged = prev.countryCode !== paisCode || prev.flow !== flow;
+      const base = { ...prev, countryCode: paisCode, industry, flow };
+      if (!countryChanged) return base;
+      return {
+        ...base,
+        category: [],
+        product: [],
+        originCountry: [],
+        customs: [],
+        importer: "",
+        exporter: "",
+        years: [],
+      };
+    });
+  }, [countryId, industryId, dataType, setFilters]);
 
 // Tab list: Cover + the 11 Vietnam dashboard tabs (translated labels).
   const pages = useMemo(

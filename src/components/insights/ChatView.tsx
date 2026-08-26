@@ -3,14 +3,15 @@
 import { useRef, useEffect, useState } from "react";
 import { useDashboard } from "@/store/useDashboard";
 import { getTranslation } from "@/app/utils/translations";
-import { ChatContext, TradeOverviewItem, TradeTotalImports } from "@/app/interfaces/trade/interface";
+import { TradeChatContexto } from "@/app/interfaces/trade/interface";
 import { post } from "@/app/actions/http";
 import { Send, Bot, User } from "lucide-react";
 
-interface ChatViewProps {
-  overview: TradeOverviewItem[];
-  totals: TradeTotalImports | null;
-}
+// Este dashboard no tiene selector de país/industria (siempre Vietnam /
+// Rendering, mismos defaults que TRADE_CONFIG en el backend) -- el único eje
+// que cambia en vivo dentro del mismo store es filters.flow.
+const COUNTRY_CODE = "VIE";
+const INDUSTRY = "Rend";
 
 function renderMessage(content: string): React.ReactNode {
   const lines = content.split("\n");
@@ -42,18 +43,29 @@ function renderMessage(content: string): React.ReactNode {
   });
 }
 
-export function ChatView({ overview, totals }: ChatViewProps) {
-  const { locale, chatMessages, addChatMessage, isLoadingChat, setIsLoadingChat } = useDashboard();
+export function ChatView() {
+  const { locale, chatMessages, addChatMessage, clearChat, isLoadingChat, setIsLoadingChat } = useDashboard();
+  const flow = useDashboard((s) => s.filters.flow);
   const t = getTranslation(locale);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastFlowRef = useRef<string | undefined>(flow);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  // El toggle Imp/Exp de este dashboard vive en el mismo store y no navega a
+  // otra ruta -- sin este reset, el historial de texto de "Exportaciones"
+  // seguiría mezclado con preguntas de "Importaciones" tras cambiar el flujo.
+  useEffect(() => {
+    if (lastFlowRef.current === flow) return;
+    lastFlowRef.current = flow;
+    clearChat();
+  }, [flow, clearChat]);
+
   const handleSend = async () => {
-    if (!input.trim() || isLoadingChat) return;
+    if (!input.trim() || isLoadingChat || !flow) return;
 
     const userMessage = { role: "user" as const, content: input.trim() };
     addChatMessage(userMessage);
@@ -61,23 +73,15 @@ export function ChatView({ overview, totals }: ChatViewProps) {
     setIsLoadingChat(true);
 
     try {
-      const context: ChatContext = {
-        stats: {
-          totalMt: totals?.totalMt,
-          records: totals?.records,
-          countries: totals?.countries,
-          products: totals?.products,
-        },
-        filters: {},
-        dataSnapshot: {
-          topCountries: overview.slice(0, 5),
-          topProducts: [],
-        },
+      const contexto: TradeChatContexto = {
+        countryCode: COUNTRY_CODE,
+        industry: INDUSTRY,
+        flow,
       };
 
       const response = await post<{ success: boolean; data: { message: string } }>("/trade/chat", {
-        messages: [...chatMessages, userMessage].slice(-10),
-        context,
+        messages: [...chatMessages, userMessage].slice(-8),
+        contexto,
       });
 
       addChatMessage({

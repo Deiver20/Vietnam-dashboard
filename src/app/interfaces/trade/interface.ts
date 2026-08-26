@@ -79,13 +79,16 @@ export interface TradeApiResponse<T> {
   filtersApplied?: Record<string, unknown>;
 }
 
-export interface ChatContext {
-  stats: Partial<TradeTotalImports>;
-  filters: TradeFilters;
-  dataSnapshot: {
-    topCountries: TradeOverviewItem[];
-    topProducts: { product: string; totalMt: number }[];
-  };
+// Contrato Fase A del agente de trade chat (POST /trade/chat): identidad
+// fija del tablero. countryCode/industry/flow SIEMPRE viajan completos en
+// cada request -- el backend los valida fail-closed (400 si falta alguno) y
+// nunca deja que el LLM los cambie. No incluye sub-filtros (producto, aduana,
+// años...): esos ya no le sirven al agente, sus propias tools tienen sus
+// propios parámetros.
+export interface TradeChatContexto {
+  countryCode: string;
+  industry: string;
+  flow: Flow;
 }
 
 export const ALLOWED_PRODUCTS = [
