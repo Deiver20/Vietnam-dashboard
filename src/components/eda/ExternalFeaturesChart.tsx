@@ -17,6 +17,7 @@ interface ExternalFeaturesChartProps {
   external: ExternalFeature[];
   loading: boolean;
   frequency: ForecastFrequency;
+  countryCode?: string;
 }
 
 interface ChartDatum {
@@ -27,10 +28,11 @@ interface ChartDatum {
   soy: number | null;
 }
 
-function ExternalChart({ data, pal, t, expandable }: {
+function ExternalChart({ data, pal, t, fxLabel, expandable }: {
   data: ChartDatum[];
   pal: ChartPalette;
   t: ReturnType<typeof getTranslation>;
+  fxLabel: string;
   expandable: boolean;
 }) {
   return (
@@ -46,9 +48,10 @@ function ExternalChart({ data, pal, t, expandable }: {
           formatter={(v, name) => {
             const num = v as number;
             const label = String(name ?? "");
-            if (label.toLowerCase().includes("usd/vnd") || label.toLowerCase().includes("usdvnd")) return [formatUSD(num, 0), label];
-            if (label.toLowerCase().includes("cif")) return [`${num.toFixed(2)} $/MT`, label];
-            if (label && (label.toLowerCase().includes("corn") || label.toLowerCase().includes("soy") || label.toLowerCase().includes("maíz") || label.toLowerCase().includes("soja") || label.toLowerCase().includes("soya") || label.toLowerCase().includes("maïs") || label.toLowerCase().includes("milho") || label.toLowerCase().includes("farelo") || label.toLowerCase().includes("tourteau"))) {
+            const low = label.toLowerCase();
+            if (low.includes("usd/cop") || low.includes("usd/vnd") || low.includes("usdcop") || low.includes("usdvnd") || low.includes("usd/")) return [formatUSD(num, 0), label];
+            if (low.includes("cif")) return [`${num.toFixed(2)} $/MT`, label];
+            if (label && (low.includes("corn") || low.includes("soy") || low.includes("maíz") || low.includes("soja") || low.includes("soya") || low.includes("maïs") || low.includes("milho") || low.includes("farelo") || low.includes("tourteau"))) {
               return [`${num.toFixed(2)} $/MT`, label];
             }
             return [num, label];
@@ -58,13 +61,13 @@ function ExternalChart({ data, pal, t, expandable }: {
         <Bar yAxisId="right" dataKey="corn" name={t.eda.externalCorn} fill="#F5C518" fillOpacity={0.6} isAnimationActive={false} />
         <Bar yAxisId="right" dataKey="soy" name={t.eda.externalSoy} fill="#00C2A8" fillOpacity={0.6} isAnimationActive={false} />
         <Line yAxisId="right" type="monotone" dataKey="cif" name={t.eda.externalCif} stroke="#FF5C5C" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
-        <Line yAxisId="left" type="monotone" dataKey="fx" name={t.eda.externalFx} stroke="#0066FF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
+        <Line yAxisId="left" type="monotone" dataKey="fx" name={fxLabel} stroke="#0066FF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
       </ComposedChart>
     </ResponsiveContainer>
   );
 }
 
-export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metrics, external, loading, frequency }: ExternalFeaturesChartProps) {
+export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metrics, external, loading, frequency, countryCode }: ExternalFeaturesChartProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
   const { ref: cardRef, light } = useScopeLight();
@@ -82,6 +85,25 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded]);
+
+  // País explícito si viene del scope, fallback a inferencia por magnitud
+  const FX_LABELS: Record<string, string> = { VIE: "USD/VND", COL: "USD/COP", CHI: "USD/CLP", CHILE: "USD/CLP", BRA: "USD/BRL", ARG: "USD/ARS" };
+  const inferredCountry = useMemo(() => {
+    const code = String(countryCode || "").toUpperCase();
+    if (FX_LABELS[code]) return code;
+    if (code === "CO") return "COL";
+    if (code === "VN" || code === "VNM") return "VIE";
+    const vals = external.filter((e) => e.fx_usdvnd != null).map((e) => Number(e.fx_usdvnd)).filter((n) => Number.isFinite(n));
+    if (vals.length === 0) return "VIE";
+    const sorted = [...vals].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    // Heurística solo fallback: COP 3k, VND 24k, CLP ~900, BRL ~5, ARS ~1300
+    if (median > 20000) return "VIE";
+    if (median > 3000) return "COL";
+    if (median > 1000) return "ARG";
+    return "CHI";
+  }, [external, countryCode]);
+  const fxLabel = FX_LABELS[inferredCountry] || `USD/${inferredCountry}`;
 
   const chartData = useMemo(() => {
     const mapped = external.map((e) => ({
@@ -151,8 +173,8 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
   const header = (
     <div className="flex items-start justify-between gap-2">
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
-        <p className="text-[10px] text-gray-5">{t.eda.externalFeaturesExplainer}</p>
+        <h3 className="text-sm font-semibold text-white mb-1">{t.eda.externalFeatures} <span className="font-normal text-gray-5">· {fxLabel}</span></h3>
+        <p className="text-[10px] text-gray-5">{t.eda.externalFeaturesExplainer} {inferredCountry === "COL" ? "(COP)" : "(VND)"}</p>
       </div>
       <button
         type="button"
@@ -168,7 +190,7 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
 
   const corrRow = (fxCorr !== null || cornCorr !== null || soyCorr !== null) && (
     <div className="flex flex-wrap gap-1.5">
-      {fxCorr !== null && corrChip(t.eda.corrFx, fxCorr >= 0 ? "#34D399" : "#F87171", fxCorr)}
+      {fxCorr !== null && corrChip(fxLabel, fxCorr >= 0 ? "#34D399" : "#F87171", fxCorr)}
       {cornCorr !== null && corrChip(t.eda.corrCorn, cornCorr >= 0 ? "#34D399" : "#F87171", cornCorr)}
       {soyCorr !== null && corrChip(t.eda.corrSoy, soyCorr >= 0 ? "#34D399" : "#F87171", soyCorr)}
     </div>
@@ -180,7 +202,7 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
         {header}
         {corrRow && <div className="mt-2 mb-2">{corrRow}</div>}
         <div className="flex-1 min-h-0">
-          <ExternalChart data={chartData} pal={pal} t={t} expandable={false} />
+          <ExternalChart data={chartData} pal={pal} t={t} fxLabel={fxLabel} expandable={false} />
         </div>
       </div>
 
@@ -197,8 +219,8 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
           <div className="relative w-full h-[92vh] bg-navy-card border border-navy-line rounded-lg p-4 sm:p-6 flex flex-col shadow-2xl">
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="min-w-0">
-                <h3 className="text-base font-semibold text-white mb-1">{t.eda.externalFeatures}</h3>
-                <p className="text-[11px] text-gray-5">{t.eda.externalFeaturesExplainer}</p>
+                <h3 className="text-base font-semibold text-white mb-1">{t.eda.externalFeatures} <span className="font-normal text-gray-5">· {fxLabel}</span></h3>
+                <p className="text-[11px] text-gray-5">{t.eda.externalFeaturesExplainer} {inferredCountry === "COL" ? "(COP)" : "(VND)"}</p>
               </div>
               <button
                 type="button"
@@ -212,7 +234,7 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
             </div>
             {corrRow && <div className="mb-3">{corrRow}</div>}
             <div className="flex-1 min-h-0">
-              <ExternalChart data={chartData} pal={overlayPal} t={t} expandable />
+              <ExternalChart data={chartData} pal={overlayPal} t={t} fxLabel={fxLabel} expandable />
             </div>
           </div>
         </div>,

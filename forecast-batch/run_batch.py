@@ -43,7 +43,7 @@ from pipeline.upsert_ream import (
 )
 
 
-def _read_external_features(max_date: date | None) -> "pd.DataFrame":
+def _read_external_features(max_date: date | None, pais_codigo: str | None = None) -> "pd.DataFrame":
     import pandas as pd
     import psycopg2
     import psycopg2.extras
@@ -51,16 +51,46 @@ def _read_external_features(max_date: date | None) -> "pd.DataFrame":
     conn = get_conn()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # Per-country external: VIE=USDVND, COL=USDCOP. Filter by pais_codigo if column exists.
+            has_pais = True
+            try:
+                cur.execute("SELECT 1 FROM information_schema.columns WHERE table_name='external_features' AND column_name='pais_codigo'")
+                has_pais = cur.fetchone() is not None
+            except Exception:
+                has_pais = False
             if max_date is not None:
-                cur.execute(
-                    "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features WHERE date <= %s ORDER BY date ASC",
-                    (max_date.isoformat(),),
-                )
+                if has_pais and pais_codigo:
+                    cur.execute(
+                        "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features WHERE date <= %s AND pais_codigo = %s ORDER BY date ASC",
+                        (max_date.isoformat(), pais_codigo.upper()),
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
+                    # Fallback to legacy global rows if per-country empty
+                    if not rows:
+                        cur.execute(
+                            "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features WHERE date <= %s ORDER BY date ASC",
+                            (max_date.isoformat(),),
+                        )
+                        rows = [dict(r) for r in cur.fetchall()]
+                else:
+                    cur.execute(
+                        "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features WHERE date <= %s ORDER BY date ASC",
+                        (max_date.isoformat(),),
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
             else:
-                cur.execute(
-                    "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features ORDER BY date ASC"
-                )
-            rows = [dict(r) for r in cur.fetchall()]
+                if has_pais and pais_codigo:
+                    cur.execute(
+                        "SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features WHERE pais_codigo = %s ORDER BY date ASC",
+                        (pais_codigo.upper(),),
+                    )
+                    rows = [dict(r) for r in cur.fetchall()]
+                    if not rows:
+                        cur.execute("SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features ORDER BY date ASC")
+                        rows = [dict(r) for r in cur.fetchall()]
+                else:
+                    cur.execute("SELECT date, fx_usdvnd, corn_fut, soymeal_fut FROM public.external_features ORDER BY date ASC")
+                    rows = [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
     df = pd.DataFrame(rows)
@@ -147,13 +177,13 @@ def _process_scope(scope: dict[str, str], args) -> int:
 
     run_products = get_run_products({"products": products})
 
-    # 3. External features ----------------------------------------------------
-    print("\n[3/5] External features (yfinance → REAM)...")
+    # 3. External features per-country (VIE=USDVND, COL=USDCOP) -----------------
+    print(f"\n[3/5] External features {scope['pais_codigo']} (yfinance → REAM)...")
     if not args.skip_external:
-        n_ext = compute_and_store_external(start_date=date(2019, 1, 1))
-        print(f"       {n_ext} filas en external_features")
-    ext = _read_external_features(max_date)
-    print(f"       Cargadas {len(ext)} filas desde REAM")
+        n_ext = compute_and_store_external(start_date=date(2019, 1, 1), pais_codigo=scope["pais_codigo"])
+        print(f"       {n_ext} filas {scope['pais_codigo']} en external_features")
+    ext = _read_external_features(max_date, pais_codigo=scope["pais_codigo"])
+    print(f"       Cargadas {len(ext)} filas {scope['pais_codigo']} desde REAM")
 
     # 4. EDA ------------------------------------------------------------------
     print("\n[4/5] Análisis Exploratorio...")

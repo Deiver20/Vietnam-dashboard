@@ -160,6 +160,7 @@ export function PriceProjectionView() {
               analysisMonth={analysisMonth}
               setAnalysisMonth={setAnalysisMonth}
               analysisProductLabel={analysisProductLabel}
+              countryCode={scope.countryCode}
             />
           </div>
         )}

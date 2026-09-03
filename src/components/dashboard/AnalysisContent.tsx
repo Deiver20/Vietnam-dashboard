@@ -34,6 +34,7 @@ export interface AnalysisContentProps {
   analysisMonth: number | null;
   setAnalysisMonth: (m: number | null) => void;
   analysisProductLabel: string;
+  countryCode?: string;
 }
 
 export function AnalysisContent({
@@ -51,6 +52,7 @@ export function AnalysisContent({
   analysisMonth,
   setAnalysisMonth,
   analysisProductLabel,
+  countryCode,
 }: AnalysisContentProps) {
   const locale = useDashboard((s) => s.locale);
   const t = getTranslation(locale);
@@ -160,7 +162,7 @@ export function AnalysisContent({
               />
             </div>
             <DeferredMount delay={180} fallback={<ChartSkeleton className="h-[clamp(340px,72vw,440px)]" />}>
-              <ExternalFeaturesChart metrics={metrics} external={external} loading={edaLoading} frequency={edaFreq} />
+              <ExternalFeaturesChart metrics={metrics} external={external} loading={edaLoading} frequency={edaFreq} countryCode={countryCode} />
             </DeferredMount>
           </div>
 
