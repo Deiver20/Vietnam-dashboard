@@ -57,8 +57,11 @@ def load_trade_records(
     df = df.rename(columns={"producto_final": "product"})
     df["volumen_mt"] = pd.to_numeric(df["volumen_mt"], errors="coerce")
     df["quantity"] = df["volumen_mt"]
-    # Imports valoran en CIF; exports valoran en FOB (cif_total viene NULL en exports).
-    value_col = "fob_total" if flujo == "Exp" else "cif_total"
+    # Imports CIF, exports FOB; BRA declara FOB en ambos flujos (ver tradeService.valueColumn)
+    if str(pais_codigo).upper() == "BRA":
+        value_col = "fob_total"
+    else:
+        value_col = "fob_total" if flujo == "Exp" else "cif_total"
     df["value_total"] = pd.to_numeric(df[value_col], errors="coerce")
     df["cif_unit_calc"] = df["value_total"] / df["quantity"]
 

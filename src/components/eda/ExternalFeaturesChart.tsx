@@ -87,7 +87,13 @@ export const ExternalFeaturesChart = memo(function ExternalFeaturesChart({ metri
   }, [expanded]);
 
   // País explícito si viene del scope, fallback a inferencia por magnitud
-  const FX_LABELS: Record<string, string> = { VIE: "USD/VND", COL: "USD/COP", CHI: "USD/CLP", CHILE: "USD/CLP", BRA: "USD/BRL", ARG: "USD/ARS" };
+  const FX_LABELS: Record<string, string> = {
+    VIE: "USD/VND", COL: "USD/COP", CHI: "USD/CLP", CHILE: "USD/CLP", BRA: "USD/BRL", ARG: "USD/ARS",
+    CHINA: "USD/CNY", BAN: "USD/BDT", BEL: "EUR/USD", BOL: "USD/BOB", COS: "USD/CRC", ECU: "USD/USD",
+    GER: "EUR/USD", GUA: "USD/GTQ", HON: "USD/HNL", ITA: "EUR/USD", MEX: "USD/MXN", NET: "EUR/USD",
+    NIG: "USD/NGN", PER: "USD/PEN", PHI: "USD/PHP", SAL: "USD/USD", SOU: "USD/ZAR", SPA: "EUR/USD",
+    UK: "GBP/USD", USA: "USD/USD",
+  };
   const inferredCountry = useMemo(() => {
     const code = String(countryCode || "").toUpperCase();
     if (FX_LABELS[code]) return code;

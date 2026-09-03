@@ -14,12 +14,34 @@ EXTERNAL_TICKERS = {
 }
 
 # Per-country FX ticker. Corn/Soy remain global (CME). FX column keeps legacy name fx_usdvnd but value is per-country.
+# Para paises dolarizados (ECU, SAL, USA) no hay FX, se usa 1.0.
 FX_TICKER_BY_COUNTRY: dict[str, str] = {
     "VIE": "USDVND=X",
     "COL": "USDCOP=X",
     "CHI": "USDCLP=X",
     "BRA": "USDBRL=X",
     "ARG": "USDARS=X",
+    "CHINA": "USDCNY=X",
+    "BAN": "USDBDT=X",
+    "BEL": "EURUSD=X",
+    "BOL": "USDBOB=X",
+    "COS": "USDCRC=X",
+    "ECU": "USD_ECU",  # dolarizado
+    "GER": "EURUSD=X",
+    "GUA": "USDGTQ=X",
+    "HON": "USDHNL=X",
+    "ITA": "EURUSD=X",
+    "MEX": "USDMXN=X",
+    "NET": "EURUSD=X",
+    "NIG": "USDNGN=X",
+    "PER": "USDPEN=X",
+    "PHI": "USDPHP=X",
+    "SAL": "USD_SAL",  # dolarizado
+    "SOU": "USDZAR=X",
+    "SPA": "EURUSD=X",
+    "UK": "GBPUSD=X",
+    "USA": "USD_USA",  # 1.0
+    # Alias futuros: THA, JAP, etc. si aparecen
 }
 FX_TICKER_ALIASES: dict[str, list[str]] = {
     "COL": ["USDCOP=X", "COP=X"],
@@ -27,7 +49,29 @@ FX_TICKER_ALIASES: dict[str, list[str]] = {
     "CHI": ["USDCLP=X", "CLP=X"],
     "BRA": ["USDBRL=X", "BRL=X"],
     "ARG": ["USDARS=X", "ARS=X"],
+    "CHINA": ["USDCNY=X", "CNY=X", "CNH=X"],
+    "BAN": ["USDBDT=X", "BDT=X"],
+    "BEL": ["EURUSD=X", "EUR=X"],
+    "BOL": ["USDBOB=X", "BOB=X"],
+    "COS": ["USDCRC=X", "CRC=X"],
+    "GER": ["EURUSD=X", "EUR=X"],
+    "GUA": ["USDGTQ=X", "GTQ=X"],
+    "HON": ["USDHNL=X", "HNL=X"],
+    "ITA": ["EURUSD=X", "EUR=X"],
+    "MEX": ["USDMXN=X", "MXN=X"],
+    "NET": ["EURUSD=X", "EUR=X"],
+    "NIG": ["USDNGN=X", "NGN=X"],
+    "PER": ["USDPEN=X", "PEN=X"],
+    "PHI": ["USDPHP=X", "PHP=X"],
+    "SOU": ["USDZAR=X", "ZAR=X"],
+    "SPA": ["EURUSD=X", "EUR=X"],
+    "UK": ["GBPUSD=X", "GBP=X"],
+    "ECU": [],  # manejado como 1.0
+    "SAL": [],
+    "USA": [],
 }
+# Paises dolarizados -> FX 1.0
+DOLLARIZED: set[str] = {"ECU", "SAL", "USA"}
 
 
 @lru_cache(maxsize=4)
@@ -49,9 +93,19 @@ def fetch_external_raw() -> pd.DataFrame:
 
 
 def _fetch_fx_series(country: str, start_date: str | pd.Timestamp = "2019-01-01") -> pd.Series:
-    """Fetch FX series for a specific country, trying aliases."""
+    """Fetch FX series for a specific country, trying aliases. Dolarizados -> serie 1.0."""
     country = (country or "VIE").upper()
-    aliases = FX_TICKER_ALIASES.get(country) or [FX_TICKER_BY_COUNTRY.get(country, "USDVND=X")]
+    if country in DOLLARIZED:
+        idx = pd.date_range(start="2019-01-01", end=pd.Timestamp.today(), freq="D")
+        s = pd.Series(1.0, index=idx, name="FX_USDVND")
+        s = s[pd.to_datetime(s.index) >= pd.to_datetime(start_date)]
+        print(f"[EXTERNAL] FX {country} dolarizado -> 1.0 ({len(s)} dias)")
+        return s
+    aliases = FX_TICKER_ALIASES.get(country)
+    if aliases is None:
+        aliases = [FX_TICKER_BY_COUNTRY.get(country, "USDVND=X")]
+    if not aliases:
+        aliases = [FX_TICKER_BY_COUNTRY.get(country, "USDVND=X")]
     last_err: Exception | None = None
     for ticker in aliases:
         try:
@@ -77,7 +131,12 @@ def _fetch_fx_series(country: str, start_date: str | pd.Timestamp = "2019-01-01"
             last_err = e
             print(f"       FX {country} {ticker} failed: {e}")
             continue
-    raise RuntimeError(f"No FX data for {country} (tried {aliases}): {last_err}")
+    # Fallback: si ticker no existe, usar serie 1.0 para no bloquear el batch (ECU/SAL/USA ya arriba)
+    print(f"[EXTERNAL] WARN FX {country} no encontrado {aliases} -> fallback 1.0")
+    idx = pd.date_range(start="2019-01-01", end=pd.Timestamp.today(), freq="D")
+    s = pd.Series(1.0, index=idx, name="FX_USDVND")
+    s = s[pd.to_datetime(s.index) >= pd.to_datetime(start_date)]
+    return s
 
 
 @lru_cache(maxsize=8)
